@@ -1,0 +1,55 @@
+/* Sidebar cố định bên trái */
+.sidebar {
+  width: 250px;
+  background: #343a40; /* Màu tối giống ảnh */
+  color: #fff;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  padding-top: 20px;
+}
+.sidebar a {
+  color: #c2c7d0;
+  text-decoration: none;
+  display: block;
+  padding: 10px 20px;
+}
+.sidebar a:hover,
+.sidebar a.active {
+  background: #007bff;
+  color: #fff;
+}
+.main-content {
+  margin-left: 250px; /* Chừa chỗ cho sidebar */
+  padding: 20px;
+  background: #f4f6f9;
+  min-height: 100vh;
+}
+.img-circle {
+  border-radius: 50%;
+  width: 30px;
+  margin-right: 10px;
+}
+/* Tên class này phụ thuộc vào thẻ <img> sản phẩm của bạn. 
+   Nếu bạn dùng Bootstrap Card thì thường là .card-img-top */
+
+.product-thumb img,
+.card-img-top {
+  width: 100%; /* Chiều rộng luôn full khung */
+  height: 350px; /* Chiều cao CỐ ĐỊNH (bạn tự chỉnh số này cho vừa mắt) */
+  object-fit: cover; /* CỰC KỲ QUAN TRỌNG: Lệnh này giúp ảnh tự cắt (crop) để vừa khít khung mà không bị méo hình */
+  object-position: top center; /* Ưu tiên lấy phần trên của ảnh (phù hợp với ảnh thời trang/quần áo) */
+}
+.card {
+  height: 100%; /* Làm cho các thẻ card trong cùng 1 hàng cao bằng nhau */
+  display: flex;
+  flex-direction: column;
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* Đẩy nút bấm xuống đáy */
+  flex-grow: 1;
+}

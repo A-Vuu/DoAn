@@ -1,0 +1,305 @@
+/* =========================================
+   1. GLOBAL STYLES (CÀI ĐẶT CHUNG)
+   ========================================= */
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f8f9fa; /* Màu nền web xám rất nhạt làm nổi khung trắng */
+  color: #333;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+/*  */
+
+/* =========================================
+   2. HEADER & NAVBAR (GIAO DIỆN DARK MODE)
+   ========================================= */
+
+/* 1. Thanh Menu chính (Nền Xanh Đen Tối) */
+.navbar {
+  background-color: rgba(
+    10,
+    31,
+    68,
+    1
+  ) !important; /* Màu xanh đen đậm giống hình */
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* 2. Logo NOVAWEAR (Màu Vàng) */
+.navbar-brand {
+  color: #ffd700 !important; /* Màu vàng Gold */
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); /* Hiệu ứng phát sáng nhẹ */
+}
+
+/* 3. Link trong Menu (SẢN PHẨM, HÀNG MỚI... -> Màu Trắng) */
+.navbar-nav .nav-link {
+  color: #ffffff !important; /* Chữ màu trắng */
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  padding: 20px 15px !important;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+}
+
+/* Hiệu ứng khi di chuột vào Menu (Chuyển sang Vàng) */
+.navbar-nav .nav-link:hover,
+.navbar-nav .nav-link.active {
+  color: #ffd700 !important; /* Hover chuyển màu vàng */
+  border-bottom: 3px solid #ffd700; /* Gạch chân vàng */
+}
+
+/* 4. Các Icon (Search, Cart, User... -> Màu Trắng) */
+.nav-icon {
+  color: #ffffff !important; /* Icon màu trắng */
+  transition: transform 0.2s, color 0.2s;
+  padding: 5px;
+}
+
+.nav-icon:hover {
+  transform: scale(1.15);
+  color: #ffd700 !important; /* Hover icon cũng chuyển vàng */
+}
+
+/* Giữ cho Mega Menu bên trong vẫn là nền trắng chữ đen cho dễ đọc */
+.dropdown-menu {
+  background-color: #ffffff !important;
+}
+
+.mega-menu-title a,
+.mega-menu-link {
+  color: #333 !important; /* Chữ trong menu con vẫn màu đen */
+}
+.mega-menu-link:hover {
+  color: #000 !important;
+}
+
+/* Xóa mũi tên tam giác mặc định */
+.remove-arrow::after {
+  display: none !important;
+}
+
+/* =========================================
+   3. MEGA MENU (MENU THẢ XUỐNG COMPACT)
+   ========================================= */
+
+/* Chỉ áp dụng cho máy tính (Màn hình > 992px) */
+@media (min-width: 992px) {
+  /* Hover vào là hiện menu ngay */
+  .navbar .dropdown:hover .dropdown-menu {
+    display: block;
+    margin-top: 0;
+    animation: fadeIn 0.2s ease-in-out;
+  }
+
+  /* Menu Full màn hình */
+  .navbar .dropdown-menu.w-100 {
+    width: 100%;
+    left: 0;
+    right: 0;
+    border: none;
+    border-top: 1px solid #eee; /* Đường kẻ ngăn cách */
+    border-radius: 0;
+    padding-top: 20px;
+    padding-bottom: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Position static để menu bung full width */
+  .navbar .position-static {
+    position: static !important;
+  }
+}
+
+/* Tiêu đề Danh mục Cha (VD: ÁO NAM) */
+.mega-menu-title {
+  font-size: 13px;
+  font-weight: 800; /* Rất đậm */
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  letter-spacing: 0.5px;
+}
+
+.mega-menu-title a {
+  color: #000;
+}
+
+/* Link Danh mục Con (VD: Áo thun, Polo) */
+.mega-menu-link {
+  font-size: 13px;
+  color: #555;
+  display: block;
+  padding: 4px 0; /* Khoảng cách dòng nhỏ gọn */
+  transition: all 0.2s ease;
+}
+
+.mega-menu-link:hover {
+  color: #000; /* Đen đậm khi hover */
+  font-weight: 600;
+  transform: translateX(3px); /* Dịch sang phải nhẹ */
+}
+
+/* Hiệu ứng hiện menu mượt mà */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================
+   4. PRODUCT CARD (KHUNG SẢN PHẨM)
+   ========================================= */
+.card-product {
+  height: 100%;
+  border: none;
+  border-radius: 0px; /* Card vuông vức sang trọng hơn bo tròn */
+  background: #fff;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+/* Ảnh sản phẩm */
+.card-product .card-img-top {
+  width: 100%;
+  height: 350px; /* Chiều cao cố định */
+  object-fit: cover;
+  object-position: top center;
+  transition: transform 0.6s ease;
+}
+
+/* Zoom ảnh khi hover */
+.card-product:hover .card-img-top {
+  transform: scale(1.05);
+}
+
+.card-product a.overflow-hidden {
+  display: block;
+  overflow: hidden; /* Giấu phần ảnh bị thừa khi zoom */
+}
+
+/* Nội dung card */
+.card-product .card-body {
+  padding: 15px 5px; /* Giảm padding 2 bên để card trông rộng hơn */
+  text-align: center; /* Canh giữa nội dung */
+}
+
+/* Tên sản phẩm */
+.product-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #000;
+  margin-bottom: 5px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  height: 44px;
+}
+
+.product-title:hover {
+  color: #555;
+  text-decoration: underline;
+}
+
+/* Giá tiền */
+.price-box {
+  margin-bottom: 10px;
+}
+
+.price-new {
+  color: #000; /* Giá tiền màu đen cho sang */
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.price-old {
+  color: #999;
+  text-decoration: line-through;
+  font-size: 13px;
+  margin-left: 5px;
+}
+
+/* Nút thêm vào giỏ (Ẩn đi, hiện khi hover - Optional, hoặc để luôn hiện) */
+.btn-add-cart {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-radius: 0; /* Nút vuông */
+  padding: 8px 15px;
+  margin-top: 5px;
+}
+
+/* =========================================
+   5. NEWS SECTION (TIN TỨC)
+   ========================================= */
+.news-img {
+  height: 250px;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+  width: 100%;
+}
+
+.news-card {
+  background: transparent; /* Nền trong suốt */
+}
+
+.news-card:hover .news-img {
+  transform: scale(1.05);
+}
+
+.news-title-link {
+  font-size: 1.1rem;
+  transition: color 0.3s;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.news-title-link:hover {
+  color: #666 !important;
+}
+
+.news-summary {
+  color: #777;
+  font-size: 0.9rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* =========================================
+   6. OTHER COMPONENTS
+   ========================================= */
+.section-header {
+  margin-bottom: 40px;
+  position: relative;
+}
+
+.section-header h3 {
+  letter-spacing: 2px; /* Giãn tiêu đề ra nhìn pro hơn */
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .card-product .card-img-top {
+    height: 220px;
+  }
+  .mega-menu-title {
+    margin-top: 15px;
+  }
+  .navbar-nav .nav-link {
+    padding: 10px 0 !important;
+    border-bottom: 1px solid #eee;
+  }
+}
