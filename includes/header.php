@@ -17,6 +17,14 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Tính số lượng giỏ hàng từ session
+$cartCount = 0;
+if (isset($_SESSION['cart']) && is_array($_SESSION['cart'])) {
+    foreach ($_SESSION['cart'] as $item) {
+        $cartCount += intval($item['qty'] ?? 1);
+    }
+}
+
 // =================================================================
 // Code xử lý lấy danh mục menu (Giữ nguyên logic của bạn)
 // =================================================================
@@ -125,7 +133,7 @@ if ($result && $result->num_rows > 0) { // Thêm kiểm tra $result tồn tại
                     </div>
 
                     <a href="cart.php" class="text-dark fs-5 position-relative nav-icon">
-                        <i class="fas fa-shopping-bag"></i> <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-dark text-white" style="font-size: 0.6rem;">0</span>
+                        <i class="fas fa-shopping-bag"></i> <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-dark text-white" style="font-size: 0.6rem;"><?php echo $cartCount; ?></span>
                     </a>
 
                     <?php if (isset($_SESSION['user_id'])): ?>

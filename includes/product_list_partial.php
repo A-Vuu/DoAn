@@ -66,7 +66,16 @@ if (isset($sectionTitle) && !empty($sectionTitle)): ?>
                     <?php if ($isOutOfStock): ?>
                         <button class="btn btn-secondary w-100 mt-3 rounded-0" disabled>Tạm hết hàng</button>
                     <?php else: ?>
-                        <a href="product_detail.php?id=<?php echo $row['Id']; ?>" class="btn btn-dark w-100 mt-3 rounded-0">Xem chi tiết</a>
+                        <div class="d-flex gap-2 mt-3">
+                            <a href="product_detail.php?id=<?php echo $row['Id']; ?>" class="btn btn-outline-dark flex-grow-1 rounded-0">Xem chi tiết</a>
+                            <form method="post" action="add_to_cart.php" style="flex-grow: 1;">
+                                <input type="hidden" name="product_id" value="<?php echo $row['Id']; ?>">
+                                <input type="hidden" name="quantity" value="1">
+                                <button type="submit" class="btn btn-dark w-100 rounded-0">
+                                    <i class="fas fa-shopping-cart"></i>
+                                </button>
+                            </form>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
