@@ -12,6 +12,11 @@ if (!isset($conn)) {
     }
 }
 
+// Khởi động session nếu chưa có để sử dụng $_SESSION
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 // =================================================================
 // Code xử lý lấy danh mục menu (Giữ nguyên logic của bạn)
 // =================================================================
@@ -106,20 +111,55 @@ if ($result && $result->num_rows > 0) { // Thêm kiểm tra $result tồn tại
                 </ul>
 
                 <div class="d-flex align-items-center gap-3 ms-auto">
-                    
-                    <a href="#" class="text-dark fs-5 nav-icon">
-                        <i class="fas fa-search"></i>
-                    </a>
+
+                    <div class="dropdown">
+                        <a class="text-dark fs-5 nav-icon dropdown-toggle" href="#" id="searchMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-search"></i>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-end p-3" aria-labelledby="searchMenu" style="min-width:260px;">
+                            <form class="d-flex" action="search.php" method="get">
+                                <input name="q" id="search-input" class="form-control me-2" type="search" placeholder="Tìm sản phẩm, danh mục..." aria-label="Search">
+                                <button class="btn btn-dark" type="submit">Tìm</button>
+                            </form>
+                        </div>
+                    </div>
 
                     <a href="cart.php" class="text-dark fs-5 position-relative nav-icon">
                         <i class="fas fa-shopping-bag"></i> <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-dark text-white" style="font-size: 0.6rem;">0</span>
                     </a>
 
-                    <a href="login.php" class="text-dark fs-5 nav-icon">
-                        <i class="far fa-user"></i>
-                    </a>
+                    <?php if (isset($_SESSION['user_id'])): ?>
+                        <div class="dropdown">
+                            <a class="text-dark fs-5 nav-icon dropdown-toggle d-flex align-items-center" href="#" role="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-user me-2"></i>
+                                <span class="d-none d-md-inline fw-bold"><?= htmlspecialchars($_SESSION['user_name']) ?></span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                                <li><a class="dropdown-item" href="profile.php">Hồ sơ</a></li>
+                                <li><a class="dropdown-item" href="change_password.php">Đổi mật khẩu</a></li>
+                                <li><a class="dropdown-item" href="logout.php">Đăng xuất</a></li>
+                            </ul>
+                        </div>
+                    <?php else: ?>
+                        <a href="login.php" class="text-dark fs-5 nav-icon">
+                            <i class="fas fa-user"></i>
+                        </a>
+                    <?php endif; ?>
                 </div>
 
             </div>
         </div>
     </nav>
+
+    <script>
+    // Focus search input when dropdown opens (Bootstrap 5 event)
+    (function(){
+        var searchToggle = document.getElementById('searchMenu');
+        var searchInput = document.getElementById('search-input');
+        if (searchToggle && searchInput && typeof bootstrap !== 'undefined') {
+            searchToggle.addEventListener('shown.bs.dropdown', function(){
+                setTimeout(function(){ searchInput.focus(); }, 50);
+            });
+        }
+    })();
+    </script>
