@@ -22,11 +22,9 @@ $products = mysqli_query($conn, $sql);
         <h4 class="text-center mb-4">NovaWear Admin</h4>
         <div class="px-3 mb-3">
             <img> <?php echo $_SESSION['admin_name']; ?>
-            <!-- <img src="https://via.placeholder.com/30" class="img-circle"> <?php echo $_SESSION['admin_name']; ?> -->
-        </div>
+            </div>
         <hr style="border-color: #4f5962;">
         <nav>
-            <!-- <a href="index.php">Trang chủ</a> -->
             <a href="../category.php">Danh mục sản phẩm</a>
             <a href="product.php" class="active">Quản lý sản phẩm</a>
             <a href="../news/news.php" >Tin tức</a>
@@ -83,7 +81,16 @@ $products = mysqli_query($conn, $sql);
         </td>
         <td><span class="badge bg-info text-dark"><?php echo $row['TenDanhMuc']; ?></span></td>
         <td><span class="badge bg-success"><?php echo $row['SoLuongTonKho']; ?></span></td>
-        <td class="text-danger font-weight-bold"><?php echo number_format($row['GiaGoc']); ?> đ</td>
+        
+        <td>
+            <?php if ($row['GiaKhuyenMai'] > 0 && $row['GiaKhuyenMai'] < $row['GiaGoc']): ?>
+                <del class="text-secondary" style="font-size: 0.9em;"><?php echo number_format($row['GiaGoc']); ?> đ</del>
+                <br>
+                <span class="text-danger fw-bold"><?php echo number_format($row['GiaKhuyenMai']); ?> đ</span>
+            <?php else: ?>
+                <span class="text-danger fw-bold"><?php echo number_format($row['GiaGoc']); ?> đ</span>
+            <?php endif; ?>
+        </td>
         
         <td>
             <?php if ($row['HienThi'] == 1): ?>
@@ -100,6 +107,11 @@ $products = mysqli_query($conn, $sql);
             <?php if (isset($row['SanPhamMoi']) && $row['SanPhamMoi'] == 1): ?>
                 <br style="margin-bottom: 4px;"> 
                 <span class="badge bg-primary">NEW</span>
+            <?php endif; ?>
+
+            <?php if ($row['GiaKhuyenMai'] > 0): ?>
+                <br style="margin-bottom: 4px;"> 
+                <span class="badge bg-danger">SALE</span>
             <?php endif; ?>
         </td>
 

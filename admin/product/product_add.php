@@ -1,103 +1,189 @@
 <?php
 session_start();
 require_once '../../config.php';
-if (!isset($_SESSION['admin_login'])) header("Location: ../login.php");
+// if (!isset($_SESSION['admin_login'])) header("Location: ../login.php");
 
+// Lấy dữ liệu cho các ô chọn
 $categories = mysqli_query($conn, "SELECT * FROM DanhMucSanPham"); 
 $colors = mysqli_query($conn, "SELECT * FROM MauSac"); 
 $sizes = mysqli_query($conn, "SELECT * FROM KichThuoc ORDER BY ThuTuSapXep ASC"); 
 
 if (isset($_POST['submit'])) {
-    $tenSP = $_POST['ten_sp'];
-    $gia = $_POST['gia'];
-    $giaKM = !empty($_POST['gia_km']) ? $_POST['gia_km'] : 'NULL'; 
-    $danhmuc = $_POST['danhmuc'];
-    $mota = $_POST['mota']; 
-    $tonkho = $_POST['kho']; 
+    // 1. XỬ LÝ DỮ LIỆU ĐẦU VÀO (An toàn bảo mật)
+    $tenSP = mysqli_real_escape_string($conn, $_POST['ten_sp']);
+    $gia = (int)$_POST['gia'];
     
-    // --- LẤY TRẠNG THÁI TỪ CHECKBOX ---
+    // Logic Khuyến mãi
+    $isSale = isset($_POST['khuyenmai']); 
+    $giaKM = ($isSale && !empty($_POST['gia_km']) && $_POST['gia_km'] > 0) ? (int)$_POST['gia_km'] : 'NULL'; 
+    
+    $danhmuc = mysqli_real_escape_string($conn, $_POST['danhmuc']);
+    $mota = mysqli_real_escape_string($conn, $_POST['mota']); 
+    
+    // [ĐÚNG TÊN CỘT TRONG DATABASE CỦA BẠN]
+    $noidungChiTiet = mysqli_real_escape_string($conn, $_POST['noidung_chitiet']);
+    
+    $tonkho = (int)$_POST['kho']; 
     $hienthi = isset($_POST['hienthi']) ? 1 : 0;
     $noibat = isset($_POST['noibat']) ? 1 : 0;
-    
-    // 1. Lấy trạng thái Sản phẩm Mới (Thêm dòng này)
     $sanphammoi = isset($_POST['sanphammoi']) ? 1 : 0;
 
-    $sku = $_POST['sku'];
-    if(empty($sku)) $sku = "SP" . date("YmdHis") . rand(10, 99);
+    // Tự tạo SKU nếu bỏ trống
+    $sku = mysqli_real_escape_string($conn, $_POST['sku']);
+    if(empty($sku)) $sku = "SP" . date("ymdHi") . rand(10, 99);
 
-    // 2. Sửa câu lệnh INSERT: Thêm cột SanPhamMoi và giá trị $sanphammoi
-    $sqlInsert = "INSERT INTO SanPham (MaSanPham, TenSanPham, GiaGoc, GiaKhuyenMai, IdDanhMuc, MoTaNgan, SoLuongTonKho, HienThi, SanPhamNoiBat, SanPhamMoi) 
-                  VALUES ('$sku', '$tenSP', '$gia', $giaKM, '$danhmuc', '$mota', '$tonkho', '$hienthi', '$noibat', '$sanphammoi')";
+    // 2. CÂU LỆNH INSERT (Đã sửa MoTaChiTiet)
+    $sqlInsert = "INSERT INTO SanPham (MaSanPham, TenSanPham, GiaGoc, GiaKhuyenMai, IdDanhMuc, MoTaNgan, MoTaChiTiet, SoLuongTonKho, HienThi, SanPhamNoiBat, SanPhamMoi) 
+                  VALUES ('$sku', '$tenSP', '$gia', $giaKM, '$danhmuc', '$mota', '$noidungChiTiet', '$tonkho', '$hienthi', '$noibat', '$sanphammoi')";
     
-    try {
-        if (mysqli_query($conn, $sqlInsert)) {
-            $idSPMoi = mysqli_insert_id($conn);
+    // 3. THỰC THI
+    if (mysqli_query($conn, $sqlInsert)) {
+        $idSPMoi = mysqli_insert_id($conn);
 
-            // Xử lý ảnh
-            if (isset($_FILES['anh_sp']) && $_FILES['anh_sp']['name'] != "") {
-                $fileName = time() . "_" . basename($_FILES["anh_sp"]["name"]);
-                if (move_uploaded_file($_FILES["anh_sp"]["tmp_name"], "../../uploads/" . $fileName)) {
-                    mysqli_query($conn, "INSERT INTO AnhSanPham (IdSanPham, DuongDanAnh, LaAnhChinh) VALUES ('$idSPMoi', '$fileName', 1)");
-                }
+        // Upload Ảnh
+        if (isset($_FILES['anh_sp']) && $_FILES['anh_sp']['name'] != "") {
+            $fileName = time() . "_" . basename($_FILES["anh_sp"]["name"]);
+            if (!file_exists("../../uploads/")) mkdir("../../uploads/", 0777, true);
+            if (move_uploaded_file($_FILES["anh_sp"]["tmp_name"], "../../uploads/" . $fileName)) {
+                mysqli_query($conn, "INSERT INTO AnhSanPham (IdSanPham, DuongDanAnh, LaAnhChinh) VALUES ('$idSPMoi', '$fileName', 1)");
             }
-
-            // Xử lý biến thể (Size & Màu)
-            if (isset($_POST['size']) && isset($_POST['color'])) {
-                $qtyPerVariant = 10;
-                $totalQty = 0;
-                foreach ($_POST['color'] as $mau) {
-                    foreach ($_POST['size'] as $kichthuoc) {
-                        $skuVariant = $sku . "-M" . $mau . "-S" . $kichthuoc;
-                        try {
-                            mysqli_query($conn, "INSERT INTO ChiTietSanPham (IdSanPham, IdMauSac, IdKichThuoc, SKU, SoLuong) VALUES ('$idSPMoi', '$mau', '$kichthuoc', '$skuVariant', '$qtyPerVariant')");
-                            $totalQty += $qtyPerVariant;
-                        } catch (Exception $e) { continue; }
-                    }
-                }
-                if ($totalQty > 0) mysqli_query($conn, "UPDATE SanPham SET SoLuongTonKho = $totalQty WHERE Id=$idSPMoi");
-            }
-            echo "<script>alert('Thêm sản phẩm thành công!'); window.location='product.php';</script>";
         }
-    } catch (Exception $e) {
-        echo "<script>alert('Lỗi: " . mysqli_error($conn) . "');</script>"; // Hiển thị lỗi rõ hơn
+
+        // Lưu Size & Màu (Biến thể)
+        if (isset($_POST['size']) && isset($_POST['color'])) {
+            $qtyPerVariant = 10; $totalQty = 0;
+            foreach ($_POST['color'] as $mau) {
+                foreach ($_POST['size'] as $kichthuoc) {
+                    $skuVariant = $sku . "-M" . $mau . "-S" . $kichthuoc;
+                    @mysqli_query($conn, "INSERT INTO ChiTietSanPham (IdSanPham, IdMauSac, IdKichThuoc, SKU, SoLuong) VALUES ('$idSPMoi', '$mau', '$kichthuoc', '$skuVariant', '$qtyPerVariant')");
+                    $totalQty += $qtyPerVariant;
+                }
+            }
+            if ($totalQty > 0) mysqli_query($conn, "UPDATE SanPham SET SoLuongTonKho = $totalQty WHERE Id=$idSPMoi");
+        }
+        echo "<script>alert('Đã thêm sản phẩm thành công!'); window.location='product.php';</script>";
+    } else {
+        $err = mysqli_error($conn);
+        echo "<script>alert('LỖI DATABASE: $err');</script>"; 
     }
 }
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="vi">
 <head>
-    <title>Thêm sản phẩm</title>
+    <meta charset="UTF-8">
+    <title>Thêm sản phẩm mới</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="../css/style.css">
-    <style>.color-option { width: 30px; height: 30px; display: inline-block; border: 1px solid #ddd; }</style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
+
+    <style>
+        /* --- CSS TÙY CHỈNH CHO FORM GỌN GÀNG --- */
+        body { background-color: #f4f6f9; font-size: 14px; } /* Chữ nhỏ vừa phải */
+        
+        .card { 
+            border: none; 
+            box-shadow: 0 0 10px rgba(0,0,0,0.05); 
+            margin-bottom: 15px; 
+        }
+        .card-header {
+            background-color: #fff;
+            border-bottom: 2px solid #0d6efd; /* Đường kẻ màu xanh tạo điểm nhấn */
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            padding: 10px 15px;
+            color: #333;
+        }
+        
+        /* Thu nhỏ khoảng cách giữa các ô input */
+        .mb-3 { margin-bottom: 10px !important; }
+        
+        /* Input nhỏ gọn hơn (chiều cao 34px thay vì mặc định to đùng) */
+        .form-control, .form-select {
+            font-size: 13px;
+            padding: 0.375rem 0.75rem;
+            border-radius: 4px;
+        }
+        
+        label { font-weight: 600; font-size: 13px; margin-bottom: 3px; color: #555; }
+        
+        /* Style cho ô màu sắc */
+        .color-checkbox { display: none; }
+        .color-label {
+            width: 30px; height: 30px; 
+            border-radius: 4px; 
+            border: 2px solid #eee; 
+            cursor: pointer; 
+            position: relative;
+            transition: all 0.2s;
+        }
+        .color-checkbox:checked + .color-label {
+            border: 2px solid #0d6efd;
+            transform: scale(1.1);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .color-checkbox:checked + .color-label::after {
+            content: '\f00c'; /* Icon dấu tích */
+            font-family: 'Font Awesome 5 Free';
+            font-weight: 900;
+            color: #fff;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            text-shadow: 0 0 2px #000;
+        }
+
+        /* Style cho ô Size */
+        .size-checkbox { display: none; }
+        .size-label {
+            display: inline-block;
+            padding: 4px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            background: #fff;
+            min-width: 40px; text-align: center;
+        }
+        .size-checkbox:checked + .size-label {
+            background-color: #0d6efd;
+            color: white;
+            border-color: #0d6efd;
+        }
+    </style>
 </head>
 <body>
-    <div class="sidebar">
-        <h4 class="text-center mb-4">NovaWear</h4>
-        <div class="px-3 mb-3">
-            <img> <?php echo $_SESSION['admin_name']; ?>
-        </div>
-        <hr style="border-color: #4f5962;">
-        <nav><a href="product.php">Quay lại danh sách</a></nav>
-    </div>
 
-    <div class="main-content">
+    <div class="container-fluid py-3">
         <form method="POST" enctype="multipart/form-data">
-            <h3 class="mb-3">Thêm mới sản phẩm</h3>
+            
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="m-0 fw-bold text-primary"><i class="fas fa-plus-circle"></i> Thêm Sản Phẩm Mới</h4>
+                <div>
+                    <a href="product.php" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left"></i> Quay lại</a>
+                    <button type="submit" name="submit" class="btn btn-success btn-sm fw-bold px-4"><i class="fas fa-save"></i> LƯU SẢN PHẨM</button>
+                </div>
+            </div>
+
             <div class="row">
-                <div class="col-md-8">
-                    <div class="card mb-4">
-                        <div class="card-header bg-white"><strong>Thông tin chung</strong></div>
+                <div class="col-lg-8">
+                    
+                    <div class="card">
+                        <div class="card-header">Thông tin cơ bản</div>
                         <div class="card-body">
                             <div class="mb-3">
-                                <label>Tên sản phẩm *</label>
-                                <input type="text" name="ten_sp" class="form-control" required>
+                                <label>Tên sản phẩm <span class="text-danger">*</span></label>
+                                <input type="text" name="ten_sp" class="form-control" placeholder="Nhập tên sản phẩm..." required>
                             </div>
+                            
                             <div class="row">
                                 <div class="col-md-6 mb-3">
                                     <label>Mã SKU</label>
-                                    <input type="text" name="sku" class="form-control" placeholder="Tự động">
+                                    <input type="text" name="sku" class="form-control" placeholder="Để trống tự sinh mã">
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label>Danh mục</label>
@@ -106,82 +192,189 @@ if (isset($_POST['submit'])) {
                                     </select>
                                 </div>
                             </div>
+
                             <div class="mb-3">
                                 <label>Mô tả ngắn</label>
-                                <textarea name="mota" class="form-control" rows="3"></textarea>
+                                <textarea name="mota" class="form-control" rows="2" placeholder="Hiển thị ở danh sách sản phẩm..."></textarea>
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="card">
-                        <div class="card-header bg-secondary text-white">Chọn Màu & Size (Tạo tự động)</div>
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <span>Phân loại hàng (Màu & Size)</span>
+                            <small class="text-muted fw-normal">Chọn ít nhất 1 nếu có</small>
+                        </div>
                         <div class="card-body">
-                            <div class="mb-3">
-                                <label class="d-block">Size:</label>
-                                <?php while($s = mysqli_fetch_assoc($sizes)): ?>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="checkbox" name="size[]" value="<?php echo $s['Id']; ?>"> <?php echo $s['TenKichThuoc']; ?>
+                            <div class="row">
+                                <div class="col-md-6 border-end">
+                                    <label class="d-block mb-2">Kích thước (Size):</label>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <?php while($s = mysqli_fetch_assoc($sizes)): ?>
+                                            <div>
+                                                <input type="checkbox" name="size[]" value="<?php echo $s['Id']; ?>" id="size_<?php echo $s['Id']; ?>" class="size-checkbox">
+                                                <label for="size_<?php echo $s['Id']; ?>" class="size-label"><?php echo $s['TenKichThuoc']; ?></label>
+                                            </div>
+                                        <?php endwhile; ?>
                                     </div>
-                                <?php endwhile; ?>
-                            </div>
-                            <hr>
-                            <div class="mb-3">
-                                <label class="d-block">Màu:</label>
-                                <div class="d-flex gap-2">
-                                <?php while($m = mysqli_fetch_assoc($colors)): ?>
-                                    <label>
-                                        <input type="checkbox" name="color[]" value="<?php echo $m['Id']; ?>">
-                                        <div class="color-option" style="background:<?php echo $m['MaMau']; ?>;" title="<?php echo $m['TenMau']; ?>"></div>
-                                    </label>
-                                <?php endwhile; ?>
+                                </div>
+                                <div class="col-md-6 ps-md-4">
+                                    <label class="d-block mb-2">Màu sắc:</label>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <?php while($m = mysqli_fetch_assoc($colors)): ?>
+                                            <div>
+                                                <input type="checkbox" name="color[]" value="<?php echo $m['Id']; ?>" id="color_<?php echo $m['Id']; ?>" class="color-checkbox">
+                                                <label for="color_<?php echo $m['Id']; ?>" class="color-label" style="background-color: <?php echo $m['MaMau']; ?>;" title="<?php echo $m['TenMau']; ?>"></label>
+                                            </div>
+                                        <?php endwhile; ?>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="col-md-4">
-                    <div class="card mb-3">
-                        <div class="card-header bg-white"><strong>Giá & Thiết lập</strong></div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <label>Giá gốc (VNĐ) *</label>
-                                <input type="number" name="gia" class="form-control" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="text-danger">Giá khuyến mãi (VNĐ)</label>
-                                <input type="number" name="gia_km" class="form-control" placeholder="Bỏ trống nếu không giảm">
-                            </div>
-                            <div class="mb-3">
-                                <label>Tồn kho</label>
-                                <input type="number" name="kho" class="form-control" value="100">
-                            </div>
-
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" name="hienthi" id="hienthiSwitch" checked>
-                                <label class="form-check-label" for="hienthiSwitch">Hiển thị sản phẩm</label>
-                            </div>
-
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" name="noibat" id="hotSwitch">
-                                <label class="form-check-label fw-bold text-warning" for="hotSwitch">Sản phẩm Nổi bật (HOT)</label>
-                            </div>
-
-                            <div class="form-check form-switch mb-3">
-                                <input class="form-check-input" type="checkbox" name="sanphammoi" id="newSwitch" checked>
-                                <label class="form-check-label fw-bold text-primary" for="newSwitch">Sản phẩm Mới (NEW)</label>
-                            </div>
-
+                    <div class="card">
+                        <div class="card-header">Nội dung chi tiết</div>
+                        <div class="card-body p-0">
+                            <textarea name="noidung_chitiet" id="editor1"></textarea>
                         </div>
                     </div>
-                    <div class="card mb-3">
-                        <div class="card-header">Ảnh đại diện</div>
-                        <div class="card-body"><input type="file" name="anh_sp" class="form-control"></div>
+                </div>
+
+                <div class="col-lg-4">
+                    
+                    <div class="card">
+                        <div class="card-header text-success"><i class="fas fa-tag"></i> Thiết lập Giá & Kho</div>
+                        <div class="card-body bg-light">
+                            <div class="mb-3">
+                                <label>Giá bán gốc (VNĐ) <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="number" name="gia" id="gia_goc" class="form-control fw-bold text-dark" required min="0" placeholder="0">
+                                    <span class="input-group-text">đ</span>
+                                </div>
+                            </div>
+                            
+                            <div class="p-2 mb-3 bg-white border rounded">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" name="khuyenmai" id="saleSwitch">
+                                    <label class="form-check-label text-danger fw-bold" for="saleSwitch">Bật Khuyến mãi (Sale)</label>
+                                </div>
+                                
+                                <div id="box_khuyenmai" style="display: none;">
+                                    <div class="row g-1">
+                                        <div class="col-5">
+                                            <small class="text-muted">Giảm %</small>
+                                            <input type="number" id="phantram_giam" class="form-control form-control-sm text-danger" placeholder="%">
+                                        </div>
+                                        <div class="col-7">
+                                            <small class="text-muted">Giá sau giảm</small>
+                                            <input type="number" name="gia_km" id="gia_km" class="form-control form-control-sm text-danger fw-bold" placeholder="VNĐ">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-0">
+                                <label>Tổng tồn kho</label>
+                                <input type="number" name="kho" class="form-control" value="100">
+                                <small class="text-muted fst-italic" style="font-size: 11px;">*Nếu chọn biến thể, kho sẽ tự tính tổng.</small>
+                            </div>
+                        </div>
                     </div>
-                    <button type="submit" name="submit" class="btn btn-success w-100 py-2">LƯU SẢN PHẨM</button>
+
+                    <div class="card">
+                        <div class="card-header">Trạng thái hiển thị</div>
+                        <div class="card-body">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" name="hienthi" id="sw_hienthi" checked>
+                                <label class="form-check-label" for="sw_hienthi">Hiển thị lên Web</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" name="sanphammoi" id="sw_new" checked>
+                                <label class="form-check-label text-primary" for="sw_new">Đánh dấu Mới (New)</label>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="noibat" id="sw_hot">
+                                <label class="form-check-label text-warning fw-bold" for="sw_hot">Đánh dấu Nổi bật (Hot)</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">Ảnh đại diện</div>
+                        <div class="card-body text-center">
+                            <input type="file" name="anh_sp" class="form-control form-control-sm mb-2" onchange="previewImage(this)">
+                            <div id="imagePreview" style="height: 150px; border: 2px dashed #ddd; display: flex; align-items: center; justify-content: center; color: #999;">
+                                <span>Chưa chọn ảnh</span>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </form>
     </div>
+
+    <script>
+        // Cấu hình CKEditor gọn gàng hơn
+        CKEDITOR.replace('editor1', {
+            height: 250, // Chiều cao cố định
+            toolbarGroups: [
+                { name: 'basicstyles', groups: [ 'basicstyles', 'cleanup' ] },
+                { name: 'paragraph', groups: [ 'list', 'indent', 'blocks', 'align' ] },
+                { name: 'styles' },
+                { name: 'colors' },
+                { name: 'insert' }
+            ]
+        });
+
+        // --- ẨN HIỆN BOX KHUYẾN MÃI ---
+        const saleSwitch = document.getElementById('saleSwitch');
+        const boxKhuyenMai = document.getElementById('box_khuyenmai');
+        function toggleSale() {
+            boxKhuyenMai.style.display = saleSwitch.checked ? 'block' : 'none';
+        }
+        saleSwitch.addEventListener('change', toggleSale);
+        toggleSale(); // Chạy lúc load
+
+        // --- TÍNH GIÁ TỰ ĐỘNG ---
+        const giaGoc = document.getElementById('gia_goc');
+        const phanTram = document.getElementById('phantram_giam');
+        const giaKm = document.getElementById('gia_km');
+
+        giaGoc.addEventListener('input', updatePrice);
+        phanTram.addEventListener('input', updatePrice);
+        
+        function updatePrice() {
+            let g = parseFloat(giaGoc.value) || 0;
+            let p = parseFloat(phanTram.value) || 0;
+            if(g > 0 && p > 0) {
+                if(p > 100) p = 100;
+                giaKm.value = Math.round(g - (g * p / 100));
+            }
+        }
+
+        giaKm.addEventListener('input', function() {
+            let g = parseFloat(giaGoc.value) || 0;
+            let k = parseFloat(this.value) || 0;
+            if(g > 0 && k < g) {
+                phanTram.value = Math.round(((g - k) / g * 100) * 10) / 10;
+            }
+        });
+
+        // --- XEM TRƯỚC ẢNH ---
+        function previewImage(input) {
+            const preview = document.getElementById('imagePreview');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.innerHTML = `<img src="${e.target.result}" style="max-height: 100%; max-width: 100%;">`;
+                }
+                reader.readAsDataURL(input.files[0]);
+            } else {
+                preview.innerHTML = '<span>Chưa chọn ảnh</span>';
+            }
+        }
+    </script>
 </body>
 </html>

@@ -3,7 +3,7 @@
    ========================================= */
 body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #f8f9fa; /* Màu nền web xám rất nhạt làm nổi khung trắng */
+  background-color: #f8f9fa;
   color: #333;
 }
 
@@ -11,32 +11,22 @@ a {
   text-decoration: none;
   color: inherit;
 }
-/*  */
 
 /* =========================================
    2. HEADER & NAVBAR (GIAO DIỆN DARK MODE)
    ========================================= */
-
-/* 1. Thanh Menu chính (Nền Xanh Đen Tối) */
 .navbar {
-  background-color: rgba(
-    10,
-    31,
-    68,
-    1
-  ) !important; /* Màu xanh đen đậm giống hình */
+  background-color: rgba(10, 31, 68, 1) !important;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
-/* 2. Logo NOVAWEAR (Màu Vàng) */
 .navbar-brand {
-  color: #ffd700 !important; /* Màu vàng Gold */
-  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); /* Hiệu ứng phát sáng nhẹ */
+  color: #ffd700 !important;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
 }
 
-/* 3. Link trong Menu (SẢN PHẨM, HÀNG MỚI... -> Màu Trắng) */
 .navbar-nav .nav-link {
-  color: #ffffff !important; /* Chữ màu trắng */
+  color: #ffffff !important;
   font-weight: 700;
   font-size: 0.95rem;
   text-transform: uppercase;
@@ -45,39 +35,35 @@ a {
   transition: all 0.2s;
 }
 
-/* Hiệu ứng khi di chuột vào Menu (Chuyển sang Vàng) */
 .navbar-nav .nav-link:hover,
 .navbar-nav .nav-link.active {
-  color: #ffd700 !important; /* Hover chuyển màu vàng */
-  border-bottom: 3px solid #ffd700; /* Gạch chân vàng */
+  color: #ffd700 !important;
+  border-bottom: 3px solid #ffd700;
 }
 
-/* 4. Các Icon (Search, Cart, User... -> Màu Trắng) */
 .nav-icon {
-  color: #ffffff !important; /* Icon màu trắng */
+  color: #ffffff !important;
   transition: transform 0.2s, color 0.2s;
   padding: 5px;
 }
 
 .nav-icon:hover {
   transform: scale(1.15);
-  color: #ffd700 !important; /* Hover icon cũng chuyển vàng */
+  color: #ffd700 !important;
 }
 
-/* Giữ cho Mega Menu bên trong vẫn là nền trắng chữ đen cho dễ đọc */
 .dropdown-menu {
   background-color: #ffffff !important;
 }
 
 .mega-menu-title a,
 .mega-menu-link {
-  color: #333 !important; /* Chữ trong menu con vẫn màu đen */
+  color: #333 !important;
 }
 .mega-menu-link:hover {
   color: #000 !important;
 }
 
-/* Xóa mũi tên tam giác mặc định */
 .remove-arrow::after {
   display: none !important;
 }
@@ -85,39 +71,33 @@ a {
 /* =========================================
    3. MEGA MENU (MENU THẢ XUỐNG COMPACT)
    ========================================= */
-
-/* Chỉ áp dụng cho máy tính (Màn hình > 992px) */
 @media (min-width: 992px) {
-  /* Hover vào là hiện menu ngay */
   .navbar .dropdown:hover .dropdown-menu {
     display: block;
     margin-top: 0;
     animation: fadeIn 0.2s ease-in-out;
   }
 
-  /* Menu Full màn hình */
   .navbar .dropdown-menu.w-100 {
     width: 100%;
     left: 0;
     right: 0;
     border: none;
-    border-top: 1px solid #eee; /* Đường kẻ ngăn cách */
+    border-top: 1px solid #eee;
     border-radius: 0;
     padding-top: 20px;
     padding-bottom: 20px;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   }
 
-  /* Position static để menu bung full width */
   .navbar .position-static {
     position: static !important;
   }
 }
 
-/* Tiêu đề Danh mục Cha (VD: ÁO NAM) */
 .mega-menu-title {
   font-size: 13px;
-  font-weight: 800; /* Rất đậm */
+  font-weight: 800;
   text-transform: uppercase;
   margin-bottom: 12px;
   letter-spacing: 0.5px;
@@ -127,22 +107,20 @@ a {
   color: #000;
 }
 
-/* Link Danh mục Con (VD: Áo thun, Polo) */
 .mega-menu-link {
   font-size: 13px;
   color: #555;
   display: block;
-  padding: 4px 0; /* Khoảng cách dòng nhỏ gọn */
+  padding: 4px 0;
   transition: all 0.2s ease;
 }
 
 .mega-menu-link:hover {
-  color: #000; /* Đen đậm khi hover */
+  color: #000;
   font-weight: 600;
-  transform: translateX(3px); /* Dịch sang phải nhẹ */
+  transform: translateX(3px);
 }
 
-/* Hiệu ứng hiện menu mượt mà */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -155,43 +133,52 @@ a {
 }
 
 /* =========================================
-   4. PRODUCT CARD (KHUNG SẢN PHẨM)
+   4. PRODUCT CARD (ĐÃ GỘP VÀ TỐI ƯU ẢNH FULL)
    ========================================= */
-.card-product {
+.card-product,
+.product-card {
   height: 100%;
-  border: none;
-  border-radius: 0px; /* Card vuông vức sang trọng hơn bo tròn */
+  border: 1px solid #eee; /* Thêm viền nhẹ cho rõ khung */
+  border-radius: 0px;
   background: #fff;
   transition: all 0.3s ease;
   position: relative;
 }
 
-/* Ảnh sản phẩm */
-.card-product .card-img-top {
+.card-product:hover,
+.product-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* --- QUAN TRỌNG: Cấu hình ảnh hiển thị Full (Contain) --- */
+.card-product .card-img-top,
+.product-card .card-img-top {
   width: 100%;
-  height: 350px; /* Chiều cao cố định */
-  object-fit: cover;
-  object-position: top center;
+  height: 300px; /* Chiều cao chuẩn */
+
+  /* Logic hiện full ảnh */
+  object-fit: contain;
+  background-color: #fff; /* Nền trắng bù vào chỗ trống */
+
   transition: transform 0.6s ease;
 }
 
-/* Zoom ảnh khi hover */
+/* Zoom ảnh nhẹ khi hover */
 .card-product:hover .card-img-top {
   transform: scale(1.05);
 }
 
 .card-product a.overflow-hidden {
   display: block;
-  overflow: hidden; /* Giấu phần ảnh bị thừa khi zoom */
+  overflow: hidden;
 }
 
-/* Nội dung card */
 .card-product .card-body {
-  padding: 15px 5px; /* Giảm padding 2 bên để card trông rộng hơn */
-  text-align: center; /* Canh giữa nội dung */
+  padding: 15px 10px;
+  text-align: center;
 }
 
-/* Tên sản phẩm */
 .product-title {
   font-size: 15px;
   font-weight: 600;
@@ -201,7 +188,7 @@ a {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  height: 44px;
+  height: 44px; /* Giới hạn chiều cao tiêu đề */
 }
 
 .product-title:hover {
@@ -209,13 +196,12 @@ a {
   text-decoration: underline;
 }
 
-/* Giá tiền */
 .price-box {
   margin-bottom: 10px;
 }
 
 .price-new {
-  color: #000; /* Giá tiền màu đen cho sang */
+  color: #d0021b; /* Màu đỏ nổi bật cho giá */
   font-weight: 700;
   font-size: 16px;
 }
@@ -225,17 +211,6 @@ a {
   text-decoration: line-through;
   font-size: 13px;
   margin-left: 5px;
-}
-
-/* Nút thêm vào giỏ (Ẩn đi, hiện khi hover - Optional, hoặc để luôn hiện) */
-.btn-add-cart {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  border-radius: 0; /* Nút vuông */
-  padding: 8px 15px;
-  margin-top: 5px;
 }
 
 /* =========================================
@@ -249,7 +224,7 @@ a {
 }
 
 .news-card {
-  background: transparent; /* Nền trong suốt */
+  background: transparent;
 }
 
 .news-card:hover .news-img {
@@ -279,7 +254,7 @@ a {
 }
 
 /* =========================================
-   6. OTHER COMPONENTS
+   6. OTHER COMPONENTS & RESPONSIVE
    ========================================= */
 .section-header {
   margin-bottom: 40px;
@@ -287,13 +262,20 @@ a {
 }
 
 .section-header h3 {
-  letter-spacing: 2px; /* Giãn tiêu đề ra nhìn pro hơn */
+  letter-spacing: 2px;
+}
+
+/* Ảnh banner carousel */
+.carousel-item img {
+  object-fit: contain !important;
+  height: auto !important;
+  max-height: 600px;
 }
 
 /* RESPONSIVE */
 @media (max-width: 768px) {
   .card-product .card-img-top {
-    height: 220px;
+    height: 220px; /* Thu nhỏ ảnh trên mobile */
   }
   .mega-menu-title {
     margin-top: 15px;
@@ -302,4 +284,81 @@ a {
     padding: 10px 0 !important;
     border-bottom: 1px solid #eee;
   }
+}
+
+/* =========================================
+   7. STYLES CHO TRANG CHI TIẾT & ĐỒNG BỘ MÀU
+   ========================================= */
+
+/* --- 1. Ảnh sản phẩm --- */
+#mainImage {
+  object-fit: contain !important;
+  background-color: #fff;
+}
+
+.thumbnail-img {
+  object-fit: cover !important;
+}
+
+/* --- 2. Nút Chọn Màu / Size --- */
+.btn-option {
+  min-width: 50px;
+  padding: 8px 15px;
+  border: 1px solid #ddd;
+  background-color: #fff;
+  color: #333;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+}
+
+/* [QUAN TRỌNG] Trạng thái ĐANG CHỌN -> Màu Xanh Đen giống Header */
+.btn-option.active,
+.active-option {
+  background-color: rgba(10, 31, 68, 1) !important; /* Màu nền xanh header */
+  border-color: rgba(10, 31, 68, 1) !important; /* Viền cùng màu */
+  color: #fff !important; /* Chữ trắng */
+}
+
+/* Trạng thái Hover (Di chuột vào) */
+.btn-option:hover {
+  border-color: rgba(10, 31, 68, 1);
+  color: rgba(10, 31, 68, 1);
+}
+
+/* Trạng thái Hết hàng / Disable */
+.btn-option.disabled,
+.disabled-option {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background-color: #f1f1f1 !important;
+  border-color: #e9ecef !important;
+  color: #adb5bd !important; /* Màu chữ xám nhạt */
+  text-decoration: line-through;
+  pointer-events: none;
+}
+
+/* --- 3. Đồng bộ các nút chức năng khác (Thêm giỏ, Mua ngay, Xem chi tiết) --- */
+
+/* Thay đổi màu nút .btn-dark (Nút nền đen cũ) thành Xanh Header */
+.btn-dark {
+  background-color: rgba(10, 31, 68, 1) !important;
+  border-color: rgba(10, 31, 68, 1) !important;
+  color: #fff !important;
+}
+
+.btn-dark:hover {
+  background-color: #1a3a6e !important; /* Sáng hơn một chút khi hover */
+  border-color: #1a3a6e !important;
+}
+
+/* Thay đổi màu nút .btn-outline-dark (Nút viền) */
+.btn-outline-dark {
+  color: rgba(10, 31, 68, 1) !important;
+  border-color: rgba(10, 31, 68, 1) !important;
+}
+
+.btn-outline-dark:hover {
+  background-color: rgba(10, 31, 68, 1) !important;
+  color: #ffffff !important;
 }

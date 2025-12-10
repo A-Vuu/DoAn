@@ -4,48 +4,62 @@ require_once 'config.php';
 include 'includes/header.php';
 
 // 1. NHẬN ID DANH MỤC TỪ URL
-// Kiểm tra xem trên thanh địa chỉ có ?id=... không
 $catId = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
-// Các biến mặc định (nếu không có ID hoặc ID = 0)
+// Các biến mặc định
 $categoryName = "Tất cả sản phẩm";
 $categoryDesc = "Khám phá bộ sưu tập đầy đủ của NOVAWEAR";
 $whereClause = "WHERE s.HienThi = 1"; // Mặc định lấy hết
 
 // 2. XỬ LÝ LOGIC KHI CÓ ID
 if ($catId > 0) {
-    // Bước A: Lấy tên danh mục từ database để sửa lại Tiêu Đề
+    // Bước A: Lấy thông tin danh mục hiện tại (để hiển thị tiêu đề)
     $sqlCat = "SELECT TenDanhMuc, MoTa FROM DanhMucSanPham WHERE Id = $catId";
     $resCat = mysqli_query($conn, $sqlCat);
     
     if ($rowCat = mysqli_fetch_assoc($resCat)) {
-        $categoryName = $rowCat['TenDanhMuc']; // Ví dụ: "Áo thun"
-        // Nếu danh mục có mô tả thì lấy, không thì để trống
+        $categoryName = $rowCat['TenDanhMuc'];
         $categoryDesc = !empty($rowCat['MoTa']) ? $rowCat['MoTa'] : "Các sản phẩm thuộc danh mục " . $categoryName;
     }
 
-    // Bước B: Tạo điều kiện lọc cho câu lệnh SQL lấy sản phẩm
-    // Lọc theo IdDanhMuc
-    $whereClause .= " AND s.IdDanhMuc = $catId";
+    // =================================================================
+    // LOGIC MỚI: TÌM DANH MỤC CON ĐỂ LẤY SẢN PHẨM CỦA CẢ CHA LẪN CON
+    // =================================================================
+    
+    // 1. Tạo mảng chứa ID cần lấy (Ban đầu chỉ chứa chính nó)
+    $listCatIds = [$catId];
+
+    // 2. Tìm các danh mục con (có IdDanhMucCha = ID hiện tại)
+    $sqlChildren = "SELECT Id FROM DanhMucSanPham WHERE IdDanhMucCha = $catId";
+    $resChildren = mysqli_query($conn, $sqlChildren);
+
+    while ($child = mysqli_fetch_assoc($resChildren)) {
+        $listCatIds[] = $child['Id']; // Thêm ID con vào danh sách
+    }
+
+    // 3. Chuyển mảng ID thành chuỗi (ví dụ: "1,5,6")
+    $listIdsString = implode(',', $listCatIds);
+
+    // Bước B: Sửa điều kiện lọc
+    // Thay vì dùng dấu = (chỉ lấy 1), ta dùng IN (lấy danh sách)
+    $whereClause .= " AND s.IdDanhMuc IN ($listIdsString)";
 }
 
-// 3. THIẾT LẬP BIẾN ĐỂ FILE PARTIAL HIỂN THỊ
-// Biến này sẽ được file 'includes/product_list_partial.php' sử dụng để in ra màn hình
+// 3. THIẾT LẬP BIẾN CHO PARTIAL
 $sectionTitle = $categoryName; 
 $sectionDesc  = $categoryDesc;
 
-// 4. TRUY VẤN SẢN PHẨM
-// Cấu hình Load More
+// 4. CẤU HÌNH LOAD MORE VÀ TRUY VẤN
 $enableLoadMore = true;
 $pageType = 'category';
-$pageId = $catId; // Truyền ID danh mục cho API
+$pageId = $catId; // Truyền ID danh mục cho API Load More
 
-// Query ban đầu (Thêm LIMIT 12)
+// Query chính thức (Kết hợp với $whereClause đã xử lý ở trên)
 $sqlQuery = "SELECT s.*, a.DuongDanAnh 
              FROM SanPham s 
              LEFT JOIN AnhSanPham a ON s.Id = a.IdSanPham AND a.LaAnhChinh = 1 
              $whereClause 
-             ORDER BY s.Id DESC LIMIT 12"; // <-- Quan trọng
+             ORDER BY s.Id DESC LIMIT 12";
 
 ?>
 
@@ -61,4 +75,4 @@ $sqlQuery = "SELECT s.*, a.DuongDanAnh
     
 </div>
 
-<?php include 'includes/footer.php'; ?>
+<?php include 'includes/footer.php'; ?> 
