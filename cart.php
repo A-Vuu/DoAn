@@ -103,9 +103,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_cart'])) {
     exit;
 }
 
-// ==========================================================================
-// PHẦN C: HIỂN THỊ GIAO DIỆN
-// ==========================================================================
+// Lấy cart: DB khi login, session khi offline
+$cart = [];
+if (isset($_SESSION['user_id']) && intval($_SESSION['user_id']) > 0) {
+    require_once __DIR__ . '/includes/cart_functions.php';
+    $cart = get_cart_items_db(intval($_SESSION['user_id']));
+} else {
+    if (!isset($_SESSION['cart']) || !is_array($_SESSION['cart'])) {
+        $_SESSION['cart'] = [];
+    }
+    $cart = &$_SESSION['cart'];
+}
+
+// Giờ mới require header
 require_once __DIR__ . '/includes/header.php';
 
 $cart = &$_SESSION['cart'];
@@ -156,6 +166,7 @@ foreach ($cart as $it) {
                             </thead>
                             <tbody>
                                 <?php foreach ($cart as $key => $it): ?>
+                                    <?php $itemKey = isset($it['key']) ? $it['key'] : $key; ?>
                                     <tr>
                                         <td class="ps-4 py-3">
                                             <div class="d-flex align-items-center">

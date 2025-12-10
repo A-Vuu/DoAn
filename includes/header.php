@@ -17,11 +17,22 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Tính số lượng giỏ hàng từ session
+// Tính số lượng giỏ hàng: nếu user đã login, đọc từ DB, ngược lại từ session
 $cartCount = 0;
-if (isset($_SESSION['cart']) && is_array($_SESSION['cart'])) {
-    foreach ($_SESSION['cart'] as $item) {
-        $cartCount += intval($item['qty'] ?? 1);
+if (isset($_SESSION['user_id']) && intval($_SESSION['user_id']) > 0) {
+    // Đọc số lượng từ DB-backed cart
+    if (file_exists(__DIR__ . '/cart_functions.php')) {
+        require_once __DIR__ . '/cart_functions.php';
+        $items = get_cart_items_db(intval($_SESSION['user_id']));
+        foreach ($items as $item) {
+            $cartCount += intval($item['qty'] ?? 1);
+        }
+    }
+} else {
+    if (isset($_SESSION['cart']) && is_array($_SESSION['cart'])) {
+        foreach ($_SESSION['cart'] as $item) {
+            $cartCount += intval($item['qty'] ?? 1);
+        }
     }
 }
 
