@@ -5,28 +5,58 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once __DIR__ . '/config.php';
-
-// Lấy cart từ session
-if (!isset($_SESSION['cart']) || !is_array($_SESSION['cart'])) {
-    $_SESSION['cart'] = [];
-}
-$cart = &$_SESSION['cart'];
-
 // Xử lý cập nhật số lượng (POST) TRƯỚC khi include header
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_cart'])) {
-    foreach ($_POST['qty'] as $key => $q) {
-        $q = intval($q);
-        if (isset($cart[$key])) {
-            if ($q <= 0) {
-                unset($cart[$key]);
+    // If logged-in, update DB-backed cart; otherwise update session cart
+    if (isset($_SESSION['user_id']) && intval($_SESSION['user_id']) > 0) {
+        require_once __DIR__ . '/includes/cart_functions.php';
+        $userId = intval($_SESSION['user_id']);
+        foreach ($_POST['qty'] as $key => $q) {
+            $q = intval($q);
+            if (strpos($key, 'db') === 0) {
+                $cartItemId = intval(substr($key, 2));
+                update_cart_item_qty_db($userId, $cartItemId, $q);
             } else {
-                $cart[$key]['qty'] = $q;
+                // session fallback key
+                if (isset($_SESSION['cart'][$key])) {
+                    if ($q <= 0) {
+                        unset($_SESSION['cart'][$key]);
+                    } else {
+                        $_SESSION['cart'][$key]['qty'] = $q;
+                    }
+                }
+            }
+        }
+    } else {
+        if (!isset($_SESSION['cart']) || !is_array($_SESSION['cart'])) {
+            $_SESSION['cart'] = [];
+        }
+        foreach ($_POST['qty'] as $key => $q) {
+            $q = intval($q);
+            if (isset($_SESSION['cart'][$key])) {
+                if ($q <= 0) {
+                    unset($_SESSION['cart'][$key]);
+                } else {
+                    $_SESSION['cart'][$key]['qty'] = $q;
+                }
             }
         }
     }
     $_SESSION['cart_success'] = 'Cập nhật giỏ hàng thành công.';
     header('Location: cart.php');
     exit;
+}
+
+// Lấy cart: DB khi login, session khi offline
+$cart = [];
+if (isset($_SESSION['user_id']) && intval($_SESSION['user_id']) > 0) {
+    require_once __DIR__ . '/includes/cart_functions.php';
+    $cart = get_cart_items_db(intval($_SESSION['user_id']));
+} else {
+    if (!isset($_SESSION['cart']) || !is_array($_SESSION['cart'])) {
+        $_SESSION['cart'] = [];
+    }
+    $cart = &$_SESSION['cart'];
 }
 
 // Giờ mới require header
@@ -78,6 +108,7 @@ foreach ($cart as $it) {
                             </thead>
                             <tbody>
                                 <?php foreach ($cart as $key => $it): ?>
+                                    <?php $itemKey = isset($it['key']) ? $it['key'] : $key; ?>
                                     <tr>
                                         <td>
                                             <div class="d-flex align-items-center">
@@ -95,11 +126,11 @@ foreach ($cart as $it) {
                                         </td>
                                         <td><?php echo number_format($it['price'], 0, ',', '.'); ?>đ</td>
                                         <td>
-                                            <input type="number" name="qty[<?php echo htmlspecialchars($key); ?>]" value="<?php echo intval($it['qty']); ?>" min="0" class="form-control" style="width:80px;">
+                                            <input type="number" name="qty[<?php echo htmlspecialchars($itemKey); ?>]" value="<?php echo intval($it['qty']); ?>" min="0" class="form-control" style="width:80px;">
                                         </td>
                                         <td><?php echo number_format($it['price'] * $it['qty'], 0, ',', '.'); ?>đ</td>
                                         <td>
-                                            <button type="button" class="btn btn-sm btn-danger" onclick="deleteItem('<?php echo htmlspecialchars($key); ?>')">Xóa</button>
+                                            <button type="button" class="btn btn-sm btn-danger" onclick="deleteItem('<?php echo htmlspecialchars($itemKey); ?>')">Xóa</button>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

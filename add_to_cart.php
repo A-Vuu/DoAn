@@ -20,6 +20,16 @@ if ($productId <= 0) {
     exit;
 }
 
+// Yêu cầu đăng nhập trước khi thêm vào giỏ hàng
+if (!isset($_SESSION['user_id']) || intval($_SESSION['user_id']) <= 0) {
+    // Lưu thông báo tạm thời để hiển thị sau khi chuyển tới trang đăng nhập
+    $_SESSION['need_login_message'] = 'Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng.';
+    // Chuyển hướng người dùng về trang sản phẩm (nếu biết) hoặc trang trước đó
+    $redirectTo = $productId > 0 ? "product.php?id={$productId}" : (isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : 'index.php');
+    header('Location: login.php?redirect=' . urlencode($redirectTo));
+    exit;
+}
+
 // Lấy thông tin sản phẩm từ DB
 $res = mysqli_query($conn, "SELECT Id, TenSanPham, GiaGoc, GiaKhuyenMai, SoLuongTonKho FROM SanPham WHERE Id = $productId AND HienThi = 1 LIMIT 1");
 if (!$res || mysqli_num_rows($res) === 0) {
@@ -49,24 +59,37 @@ if ($imgRes && mysqli_num_rows($imgRes) > 0) {
 if (!isset($_SESSION['cart']) || !is_array($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
 }
+// Nếu user chưa đăng nhập: thêm vào giỏ hàng session tạm thời, sau đó yêu cầu đăng nhập
+if (!isset($_SESSION['user_id']) || intval($_SESSION['user_id']) <= 0) {
+    // Khóa duy nhất cho item (session)
+    $key = 'p' . $productId;
+    if (isset($_SESSION['cart'][$key])) {
+        $_SESSION['cart'][$key]['qty'] += $qty;
+    } else {
+        $_SESSION['cart'][$key] = [
+            'key' => $key,
+            'product_id' => $productId,
+            'name' => $p['TenSanPham'],
+            'price' => $price,
+            'qty' => $qty,
+            'image' => $img
+        ];
+    }
 
-// Khóa duy nhất cho item
-$key = 'p' . $productId;
+    // Thông báo tạm thời
+    $_SESSION['cart_success'] = 'Đã thêm "' . $p['TenSanPham'] . '" vào giỏ hàng (tạm). Vui lòng đăng nhập để lưu.';
+    $_SESSION['need_login_message'] = 'Bạn đã thêm sản phẩm vào giỏ. Vui lòng đăng nhập để lưu giỏ hàng.';
 
-if (isset($_SESSION['cart'][$key])) {
-    // Tăng số lượng
-    $_SESSION['cart'][$key]['qty'] += $qty;
-} else {
-    $_SESSION['cart'][$key] = [
-        'key' => $key,
-        'product_id' => $productId,
-        'name' => $p['TenSanPham'],
-        'price' => $price,
-        'qty' => $qty,
-        'image' => $img
-    ];
+    // Chuyển hướng về trang đã yêu cầu (nếu biết) để người dùng quay lại sau khi đăng nhập
+    $redirectTo = $productId > 0 ? "product.php?id={$productId}" : (isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : 'index.php');
+    header('Location: login.php?redirect=' . urlencode($redirectTo));
+    exit;
 }
 
+// Nếu user đã đăng nhập: lưu trực tiếp vào DB
+require_once __DIR__ . '/includes/cart_functions.php';
+$userId = intval($_SESSION['user_id']);
+add_or_update_cart_item_db($userId, $productId, $qty, $price, null);
 $_SESSION['cart_success'] = 'Đã thêm "' . $p['TenSanPham'] . '" vào giỏ hàng.';
 header('Location: cart.php');
 exit;
