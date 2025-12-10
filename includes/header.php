@@ -1,63 +1,112 @@
 <?php
 // =================================================================
-// SỬA LỖI: Kiểm tra và gọi file config.php nếu biến $conn chưa có
+// HEADER.PHP - PHIÊN BẢN ĐÃ SỬA LỖI & ĐỒNG BỘ SESSION/DB
 // =================================================================
+
+// 1. Kết nối CSDL (Nếu chưa có)
 if (!isset($conn)) {
-    // __DIR__ là đường dẫn tuyệt đối đến thư mục 'includes'
-    // '/../config.php' có nghĩa là lùi lại 1 cấp để tìm file config
-    if (file_exists(__DIR__ . '/../config.php')) {
-        require_once __DIR__ . '/../config.php';
-    } else {
-        die("Lỗi: Không tìm thấy file config.php");
-    }
+    if (file_exists(__DIR__ . '/../config.php')) require_once __DIR__ . '/../config.php';
+    elseif (file_exists(__DIR__ . '/config.php')) require_once __DIR__ . '/config.php';
 }
 
-// Khởi động session nếu chưa có để sử dụng $_SESSION
+// 2. Khởi động session
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Tính số lượng giỏ hàng: nếu user đã login, đọc từ DB, ngược lại từ session
+// =================================================================
+// LOGIC TÍNH SỐ LƯỢNG GIỎ HÀNG (QUAN TRỌNG)
+// =================================================================
 $cartCount = 0;
-if (isset($_SESSION['user_id']) && intval($_SESSION['user_id']) > 0) {
-    // Đọc số lượng từ DB-backed cart
-    if (file_exists(__DIR__ . '/cart_functions.php')) {
-        require_once __DIR__ . '/cart_functions.php';
-        $items = get_cart_items_db(intval($_SESSION['user_id']));
-        foreach ($items as $item) {
-            $cartCount += intval($item['qty'] ?? 1);
+
+// Hàm hỗ trợ đếm số lượng an toàn
+if (!function_exists('calculate_cart_qty')) {
+    function calculate_cart_qty($items) {
+        $total = 0;
+        if (is_array($items)) {
+            foreach ($items as $item) {
+                // Kiểm tra các biến: qty (session), quantity, SoLuong (DB)
+                $q = 0;
+                if (isset($item['qty'])) $q = intval($item['qty']);
+                elseif (isset($item['quantity'])) $q = intval($item['quantity']);
+                elseif (isset($item['SoLuong'])) $q = intval($item['SoLuong']);
+                
+                // Nếu chưa có qty, mặc định là 1
+                if ($q <= 0) $q = 1;
+                $total += $q;
+            }
+        }
+        return $total;
+    }
+}
+
+// ƯU TIÊN 1: Nếu trang hiện tại (cart.php) đã có biến $cart
+// Dùng luôn biến này để hiển thị -> Đồng bộ tuyệt đối với bảng bên dưới
+if (isset($cart) && is_array($cart) && !empty($cart)) {
+    $cartCount = calculate_cart_qty($cart);
+} 
+// ƯU TIÊN 2: Nếu chưa có $cart, tự tính toán
+else {
+    // 2.1: Thử lấy từ Database nếu đã đăng nhập
+   // 2.1: Thử lấy từ Database nếu đã đăng nhập (LOGIC MỚI: GioHang -> ChiTietGioHang)
+    $db_count = 0;
+    if (isset($_SESSION['user_id']) && intval($_SESSION['user_id']) > 0) {
+        $uid = intval($_SESSION['user_id']);
+        
+        // Truy vấn tổng số lượng từ bảng ChiTietGioHang thông qua bảng cha GioHang
+        // Lưu ý: Cần biến $conn (đã được include từ config.php ở trên)
+        if (isset($conn)) {
+            $sqlH = "SELECT SUM(ct.SoLuong) as total 
+                     FROM GioHang gh 
+                     JOIN ChiTietGioHang ct ON gh.Id = ct.IdGioHang 
+                     WHERE gh.IdNguoiDung = $uid";
+                     
+            $resH = mysqli_query($conn, $sqlH);
+            if ($resH && $rowH = mysqli_fetch_assoc($resH)) {
+                $db_count = intval($rowH['total']);
+            }
         }
     }
-} else {
+    
+    // 2.2: Lấy từ Session
+    $session_count = 0;
     if (isset($_SESSION['cart']) && is_array($_SESSION['cart'])) {
-        foreach ($_SESSION['cart'] as $item) {
-            $cartCount += intval($item['qty'] ?? 1);
-        }
+        $session_count = calculate_cart_qty($_SESSION['cart']);
+    }
+
+    // --- QUYẾT ĐỊNH HIỂN THỊ ---
+    // Nếu DB có dữ liệu -> Dùng DB
+    // Nếu DB = 0 nhưng Session có dữ liệu -> Dùng Session (Trường hợp của bạn)
+    if ($db_count > 0) {
+        $cartCount = $db_count;
+    } else {
+        $cartCount = $session_count;
     }
 }
 
 // =================================================================
-// Code xử lý lấy danh mục menu (Giữ nguyên logic của bạn)
+// Code xử lý lấy danh mục menu (Giữ nguyên)
 // =================================================================
-$sql = "SELECT * FROM DanhMucSanPham WHERE HienThi = 1 ORDER BY ThuTuHienThi ASC";
-$result = $conn->query($sql);
 $menuData = []; 
-
-if ($result && $result->num_rows > 0) { // Thêm kiểm tra $result tồn tại
-    $allCats = [];
-    while($row = $result->fetch_assoc()) { $allCats[] = $row; }
+if (isset($conn)) {
+    $sql = "SELECT * FROM DanhMucSanPham WHERE HienThi = 1 ORDER BY ThuTuHienThi ASC";
+    $result = $conn->query($sql);
     
-    foreach ($allCats as $cat) {
-        if ($cat['IdDanhMucCha'] == NULL) {
-            $cat['children'] = []; 
-            $menuData[$cat['Id']] = $cat; 
+    if ($result && $result->num_rows > 0) {
+        $allCats = [];
+        while($row = $result->fetch_assoc()) { $allCats[] = $row; }
+        foreach ($allCats as $cat) {
+            if ($cat['IdDanhMucCha'] == NULL) {
+                $cat['children'] = []; 
+                $menuData[$cat['Id']] = $cat; 
+            }
         }
-    }
-    foreach ($allCats as $cat) {
-        if ($cat['IdDanhMucCha'] != NULL) {
-            $parentId = $cat['IdDanhMucCha'];
-            if (isset($menuData[$parentId])) {
-                $menuData[$parentId]['children'][] = $cat;
+        foreach ($allCats as $cat) {
+            if ($cat['IdDanhMucCha'] != NULL) {
+                $parentId = $cat['IdDanhMucCha'];
+                if (isset($menuData[$parentId])) {
+                    $menuData[$parentId]['children'][] = $cat;
+                }
             }
         }
     }
