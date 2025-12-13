@@ -8,22 +8,32 @@ if (!isset($_SESSION['admin_login'])) {
     exit();
 }
 
-$id = $_GET['id']; // Lấy ID sản phẩm cần sửa
+$id = intval($_GET['id']); // Lấy ID sản phẩm cần sửa (bảo mật thêm intval)
 
-// --- 1. XỬ LÝ XÓA BIẾN THỂ ---
+// --- 1. XỬ LÝ XÓA BIẾN THỂ (ĐÃ NÂNG CẤP XÓA ẢNH) ---
 if (isset($_GET['del_variant'])) {
-    $idVar = $_GET['del_variant'];
+    $idVar = intval($_GET['del_variant']);
+    
+    // Lấy tên ảnh cũ để xóa khỏi thư mục uploads (dọn dẹp rác)
+    $queryAnh = mysqli_query($conn, "SELECT AnhBienThe FROM ChiTietSanPham WHERE Id = $idVar");
+    $rowAnh = mysqli_fetch_assoc($queryAnh);
+    if (!empty($rowAnh['AnhBienThe'])) {
+        $path = "../../uploads/" . $rowAnh['AnhBienThe'];
+        if (file_exists($path)) unlink($path); // Xóa file
+    }
+
     mysqli_query($conn, "DELETE FROM ChiTietSanPham WHERE Id = $idVar");
+    
     // Cập nhật lại tổng tồn kho sau khi xóa
     mysqli_query($conn, "UPDATE SanPham SET SoLuongTonKho = (SELECT IFNULL(SUM(SoLuong), 0) FROM ChiTietSanPham WHERE IdSanPham=$id) WHERE Id=$id");
     echo "<script>window.location='product_edit.php?id=$id';</script>";
     exit();
 }
 
-// --- 2. XỬ LÝ THÊM BIẾN THỂ MỚI ---
+// --- 2. XỬ LÝ THÊM BIẾN THỂ MỚI (ĐÃ THÊM UPLOAD ẢNH) ---
 if (isset($_POST['add_variant'])) {
-    $mau = $_POST['new_color'];
-    $size = $_POST['new_size'];
+    $mau = intval($_POST['new_color']);
+    $size = intval($_POST['new_size']);
     $sl = (int)$_POST['new_qty'];
     $skuParent = $_POST['sku_parent']; 
     
@@ -33,13 +43,33 @@ if (isset($_POST['add_variant'])) {
         echo "<script>alert('Biến thể này (Màu + Size) đã tồn tại!');</script>";
     } else {
         $skuChild = $skuParent . "-M" . $mau . "-S" . $size;
-        $sqlAddVar = "INSERT INTO ChiTietSanPham (IdSanPham, IdMauSac, IdKichThuoc, SoLuong, SKU) 
-                      VALUES ('$id', '$mau', '$size', '$sl', '$skuChild')";
-        mysqli_query($conn, $sqlAddVar);
         
-        // Cập nhật tổng tồn kho
-        mysqli_query($conn, "UPDATE SanPham SET SoLuongTonKho = (SELECT SUM(SoLuong) FROM ChiTietSanPham WHERE IdSanPham=$id) WHERE Id=$id");
-        echo "<script>window.location='product_edit.php?id=$id';</script>";
+        // --- LOGIC UPLOAD ẢNH BIẾN THỂ ---
+        $anhBienThe = 'NULL'; // Mặc định là NULL nếu không up ảnh
+        
+        if (isset($_FILES['new_img']) && $_FILES['new_img']['name'] != "") {
+            $target_dir = "../../uploads/";
+            if (!file_exists($target_dir)) mkdir($target_dir, 0777, true);
+            
+            // Đặt tên file tránh trùng: time_var_IDMàu_TênGốc
+            $fileName = time() . "_var_" . $mau . "_" . basename($_FILES["new_img"]["name"]);
+            
+            if (move_uploaded_file($_FILES["new_img"]["tmp_name"], $target_dir . $fileName)) {
+                $anhBienThe = "'$fileName'"; // Chuỗi tên file để đưa vào SQL
+            }
+        }
+        // -----------------------------------
+
+        $sqlAddVar = "INSERT INTO ChiTietSanPham (IdSanPham, IdMauSac, IdKichThuoc, SoLuong, SKU, AnhBienThe) 
+                      VALUES ('$id', '$mau', '$size', '$sl', '$skuChild', $anhBienThe)";
+        
+        if(mysqli_query($conn, $sqlAddVar)){
+            // Cập nhật tổng tồn kho
+            mysqli_query($conn, "UPDATE SanPham SET SoLuongTonKho = (SELECT SUM(SoLuong) FROM ChiTietSanPham WHERE IdSanPham=$id) WHERE Id=$id");
+            echo "<script>window.location='product_edit.php?id=$id';</script>";
+        } else {
+            echo "<script>alert('Lỗi thêm biến thể: " . mysqli_error($conn) . "');</script>";
+        }
     }
 }
 
@@ -62,14 +92,14 @@ if (isset($_POST['update_product'])) {
     $sku = mysqli_real_escape_string($conn, $_POST['sku']);
     $gia = (int)$_POST['gia'];
     
-    // Logic khuyến mãi (Giống trang Add)
+    // Logic khuyến mãi
     $isSale = isset($_POST['khuyenmai']);
     $giaKM = ($isSale && !empty($_POST['gia_km']) && $_POST['gia_km'] > 0) ? (int)$_POST['gia_km'] : 'NULL';
 
     $danhmuc = $_POST['danhmuc'];
     $mota = mysqli_real_escape_string($conn, $_POST['mota']);
-    $noidungChiTiet = mysqli_real_escape_string($conn, $_POST['noidung_chitiet']); // [QUAN TRỌNG] Lấy nội dung CKEditor
-    $tonkho_tong = (int)$_POST['kho']; // Nếu không có biến thể thì dùng số này
+    $noidungChiTiet = mysqli_real_escape_string($conn, $_POST['noidung_chitiet']);
+    $tonkho_tong = (int)$_POST['kho']; 
     
     $hienthi = isset($_POST['hienthi']) ? 1 : 0;
     $noibat = isset($_POST['noibat']) ? 1 : 0;
@@ -77,7 +107,6 @@ if (isset($_POST['update_product'])) {
 
     if (empty($sku)) $sku = "SP" . date("YmdHis") . rand(10, 99);
 
-    // [QUAN TRỌNG] Câu SQL Update đầy đủ
     $sqlUpdate = "UPDATE SanPham SET 
                     TenSanPham='$tenSP', 
                     MaSanPham='$sku', 
@@ -94,14 +123,13 @@ if (isset($_POST['update_product'])) {
     try {
         if (mysqli_query($conn, $sqlUpdate)) {
             
-            // Xử lý tồn kho tổng (Nếu KHÔNG có biến thể thì cập nhật theo ô nhập, nếu CÓ thì SQL biến thể ở trên đã lo rồi)
-            // Kiểm tra xem SP này có biến thể không
+            // Xử lý tồn kho tổng (Nếu KHÔNG có biến thể thì cập nhật theo ô nhập)
             $checkVar = mysqli_query($conn, "SELECT Id FROM ChiTietSanPham WHERE IdSanPham=$id LIMIT 1");
             if (mysqli_num_rows($checkVar) == 0) {
                 mysqli_query($conn, "UPDATE SanPham SET SoLuongTonKho = $tonkho_tong WHERE Id=$id");
             }
 
-            // --- XỬ LÝ ẢNH ---
+            // --- XỬ LÝ ẢNH CHÍNH ---
             if (isset($_FILES['anh_moi']) && $_FILES['anh_moi']['name'] != "") {
                 $target_dir = "../../uploads/";
                 if (!file_exists($target_dir)) mkdir($target_dir, 0777, true);
@@ -109,7 +137,6 @@ if (isset($_POST['update_product'])) {
                 $fileName = time() . "_" . basename($_FILES["anh_moi"]["name"]);
                 
                 if(move_uploaded_file($_FILES["anh_moi"]["tmp_name"], $target_dir . $fileName)) {
-                    // Kiểm tra xem đã có ảnh chưa
                     $checkAnh = mysqli_query($conn, "SELECT Id FROM AnhSanPham WHERE IdSanPham = $id LIMIT 1");
                     if (mysqli_num_rows($checkAnh) > 0) {
                         mysqli_query($conn, "UPDATE AnhSanPham SET DuongDanAnh = '$fileName' WHERE IdSanPham = $id");
@@ -126,24 +153,23 @@ if (isset($_POST['update_product'])) {
     }
 }
 
-// --- LẤY DỮ LIỆU ĐỂ HIỂN THỊ RA FORM ---
+// --- LẤY DỮ LIỆU HIỂN THỊ ---
 $querySP = mysqli_query($conn, "SELECT * FROM SanPham WHERE Id = $id");
 if(mysqli_num_rows($querySP) == 0) die("Sản phẩm không tồn tại");
 $row = mysqli_fetch_assoc($querySP);
 
-// Lấy ảnh
+// Lấy ảnh chính
 $anhData = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM AnhSanPham WHERE IdSanPham = $id LIMIT 1"));
 $anhHienTai = ($anhData) ? $anhData['DuongDanAnh'] : '';
 
-// Lấy biến thể
+// Lấy biến thể (Có thêm cột AnhBienThe)
 $variants = mysqli_query($conn, "SELECT ct.*, m.TenMau, m.MaMau, k.TenKichThuoc 
                                  FROM ChiTietSanPham ct 
                                  JOIN MauSac m ON ct.IdMauSac = m.Id 
                                  JOIN KichThuoc k ON ct.IdKichThuoc = k.Id 
-                                 WHERE ct.IdSanPham = $id ORDER BY k.ThuTuSapXep");
+                                 WHERE ct.IdSanPham = $id ORDER BY m.Id, k.ThuTuSapXep");
 $hasVariants = (mysqli_num_rows($variants) > 0);
 
-// Dữ liệu cho dropdown
 $categories = mysqli_query($conn, "SELECT * FROM DanhMucSanPham");
 $colors = mysqli_query($conn, "SELECT * FROM MauSac");
 $sizes = mysqli_query($conn, "SELECT * FROM KichThuoc ORDER BY ThuTuSapXep");
@@ -214,7 +240,7 @@ $sizes = mysqli_query($conn, "SELECT * FROM KichThuoc ORDER BY ThuTuSapXep");
 
                     <div class="card">
                         <div class="card-header d-flex justify-content-between align-items-center bg-light">
-                            <span><i class="fas fa-boxes"></i> Quản lý Biến thể (Size/Màu)</span>
+                            <span><i class="fas fa-boxes"></i> Quản lý Biến thể (Size/Màu/Ảnh)</span>
                             <span class="badge bg-secondary"><?php echo mysqli_num_rows($variants); ?> phiên bản</span>
                         </div>
                         <div class="card-body p-0">
@@ -222,7 +248,7 @@ $sizes = mysqli_query($conn, "SELECT * FROM KichThuoc ORDER BY ThuTuSapXep");
                                 <thead class="table-light">
                                     <tr>
                                         <th class="ps-3">Màu sắc</th>
-                                        <th>Size</th>
+                                        <th class="text-center">Ảnh</th> <th>Size</th>
                                         <th>SKU Con</th>
                                         <th width="100">Số lượng</th>
                                         <th width="50" class="text-center">Xóa</th>
@@ -235,6 +261,13 @@ $sizes = mysqli_query($conn, "SELECT * FROM KichThuoc ORDER BY ThuTuSapXep");
                                             <td class="ps-3">
                                                 <span class="color-dot" style="background:<?php echo $v['MaMau']; ?>"></span>
                                                 <?php echo $v['TenMau']; ?>
+                                            </td>
+                                            <td class="text-center">
+                                                <?php if(!empty($v['AnhBienThe'])): ?>
+                                                    <img src="../../uploads/<?php echo $v['AnhBienThe']; ?>" style="width: 30px; height: 30px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">
+                                                <?php else: ?>
+                                                    <span class="text-muted" style="font-size: 10px;">--</span>
+                                                <?php endif; ?>
                                             </td>
                                             <td><span class="badge bg-info text-dark"><?php echo $v['TenKichThuoc']; ?></span></td>
                                             <td class="text-muted small"><?php echo $v['SKU']; ?></td>
@@ -249,29 +282,35 @@ $sizes = mysqli_query($conn, "SELECT * FROM KichThuoc ORDER BY ThuTuSapXep");
                                         </tr>
                                         <?php endwhile; ?>
                                     <?php else: ?>
-                                        <tr><td colspan="5" class="text-center py-3 text-muted">Sản phẩm này chưa có biến thể (Sản phẩm đơn)</td></tr>
+                                        <tr><td colspan="6" class="text-center py-3 text-muted">Sản phẩm này chưa có biến thể (Sản phẩm đơn)</td></tr>
                                     <?php endif; ?>
                                 </tbody>
                             </table>
                             
                             <div class="p-3 bg-light border-top">
-                                <label class="small fw-bold text-success mb-2"><i class="fas fa-plus"></i> Thêm biến thể mới:</label>
-                                <div class="row g-2">
+                                <label class="small fw-bold text-success mb-2"><i class="fas fa-plus"></i> Thêm biến thể mới (Màu + Size + Ảnh):</label>
+                                <div class="row g-2 align-items-center">
                                     <input type="hidden" name="sku_parent" value="<?php echo $row['MaSanPham']; ?>">
-                                    <div class="col-md-4">
-                                        <select name="new_color" class="form-select form-select-sm">
-                                            <option value="">-- Chọn Màu --</option>
+                                    
+                                    <div class="col-md-3">
+                                        <select name="new_color" class="form-select form-select-sm" >
+                                            <option value="">-- Màu --</option>
                                             <?php mysqli_data_seek($colors, 0); while($m = mysqli_fetch_assoc($colors)) echo "<option value='{$m['Id']}'>{$m['TenMau']}</option>"; ?>
                                         </select>
                                     </div>
-                                    <div class="col-md-3">
-                                        <select name="new_size" class="form-select form-select-sm">
-                                            <option value="">-- Chọn Size --</option>
+                                    <div class="col-md-2">
+                                        <select name="new_size" class="form-select form-select-sm" >
+                                            <option value="">-- Size --</option>
                                             <?php mysqli_data_seek($sizes, 0); while($s = mysqli_fetch_assoc($sizes)) echo "<option value='{$s['Id']}'>{$s['TenKichThuoc']}</option>"; ?>
                                         </select>
                                     </div>
+                                    
                                     <div class="col-md-3">
-                                        <input type="number" name="new_qty" class="form-control form-control-sm" placeholder="Số lượng" value="10">
+                                        <input type="file" name="new_img" class="form-control form-control-sm" title="Ảnh biến thể (nếu có)">
+                                    </div>
+
+                                    <div class="col-md-2">
+                                        <input type="number" name="new_qty" class="form-control form-control-sm" placeholder="SL" value="10" required>
                                     </div>
                                     <div class="col-md-2">
                                         <button type="submit" name="add_variant" class="btn btn-success btn-sm w-100">Thêm</button>
@@ -330,7 +369,7 @@ $sizes = mysqli_query($conn, "SELECT * FROM KichThuoc ORDER BY ThuTuSapXep");
                             <div class="p-2 mb-3 bg-white border rounded">
                                 <div class="form-check form-switch mb-2">
                                     <input class="form-check-input" type="checkbox" name="khuyenmai" id="saleSwitch" 
-                                        <?php echo (!empty($row['GiaKhuyenMai']) && $row['GiaKhuyenMai'] > 0) ? 'checked' : ''; ?>>
+                                           <?php echo (!empty($row['GiaKhuyenMai']) && $row['GiaKhuyenMai'] > 0) ? 'checked' : ''; ?>>
                                     <label class="form-check-label text-danger fw-bold" for="saleSwitch">Đang Sale</label>
                                 </div>
                                 <div id="box_khuyenmai" style="display: none;">
@@ -342,7 +381,7 @@ $sizes = mysqli_query($conn, "SELECT * FROM KichThuoc ORDER BY ThuTuSapXep");
                                         <div class="col-7">
                                             <small class="text-muted">Giá KM</small>
                                             <input type="number" name="gia_km" id="gia_km" class="form-control form-control-sm text-danger fw-bold" 
-                                                value="<?php echo ($row['GiaKhuyenMai'] > 0) ? $row['GiaKhuyenMai'] : ''; ?>">
+                                                   value="<?php echo ($row['GiaKhuyenMai'] > 0) ? $row['GiaKhuyenMai'] : ''; ?>">
                                         </div>
                                     </div>
                                 </div>
@@ -385,9 +424,9 @@ $sizes = mysqli_query($conn, "SELECT * FROM KichThuoc ORDER BY ThuTuSapXep");
             boxKhuyenMai.style.display = saleSwitch.checked ? 'block' : 'none';
         }
         saleSwitch.addEventListener('change', toggleSale);
-        toggleSale(); // Chạy khi load
+        toggleSale(); 
 
-        // --- 2. LOGIC TÍNH GIÁ (Chạy khi load trang để tính % nếu có giá KM) ---
+        // --- 2. LOGIC TÍNH GIÁ ---
         const giaGoc = document.getElementById('gia_goc');
         const phanTram = document.getElementById('phantram_giam');
         const giaKm = document.getElementById('gia_km');
@@ -399,9 +438,8 @@ $sizes = mysqli_query($conn, "SELECT * FROM KichThuoc ORDER BY ThuTuSapXep");
                 phanTram.value = Math.round(((g - k) / g * 100) * 10) / 10;
             }
         }
-        if(saleSwitch.checked) calcPercent(); // Tính % khi mới vào trang
+        if(saleSwitch.checked) calcPercent(); 
 
-        // Sự kiện nhập liệu
         giaGoc.addEventListener('input', function() {
             let g = parseFloat(this.value) || 0;
             let p = parseFloat(phanTram.value) || 0;

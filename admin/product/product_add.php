@@ -9,7 +9,7 @@ $colors = mysqli_query($conn, "SELECT * FROM MauSac");
 $sizes = mysqli_query($conn, "SELECT * FROM KichThuoc ORDER BY ThuTuSapXep ASC"); 
 
 if (isset($_POST['submit'])) {
-    // 1. XỬ LÝ DỮ LIỆU ĐẦU VÀO (An toàn bảo mật)
+    // 1. XỬ LÝ DỮ LIỆU CƠ BẢN
     $tenSP = mysqli_real_escape_string($conn, $_POST['ten_sp']);
     $gia = (int)$_POST['gia'];
     
@@ -19,8 +19,6 @@ if (isset($_POST['submit'])) {
     
     $danhmuc = mysqli_real_escape_string($conn, $_POST['danhmuc']);
     $mota = mysqli_real_escape_string($conn, $_POST['mota']); 
-    
-    // [ĐÚNG TÊN CỘT TRONG DATABASE CỦA BẠN]
     $noidungChiTiet = mysqli_real_escape_string($conn, $_POST['noidung_chitiet']);
     
     $tonkho = (int)$_POST['kho']; 
@@ -32,36 +30,79 @@ if (isset($_POST['submit'])) {
     $sku = mysqli_real_escape_string($conn, $_POST['sku']);
     if(empty($sku)) $sku = "SP" . date("ymdHi") . rand(10, 99);
 
-    // 2. CÂU LỆNH INSERT (Đã sửa MoTaChiTiet)
+    // 2. INSERT SẢN PHẨM CHA
     $sqlInsert = "INSERT INTO SanPham (MaSanPham, TenSanPham, GiaGoc, GiaKhuyenMai, IdDanhMuc, MoTaNgan, MoTaChiTiet, SoLuongTonKho, HienThi, SanPhamNoiBat, SanPhamMoi) 
                   VALUES ('$sku', '$tenSP', '$gia', $giaKM, '$danhmuc', '$mota', '$noidungChiTiet', '$tonkho', '$hienthi', '$noibat', '$sanphammoi')";
     
-    // 3. THỰC THI
     if (mysqli_query($conn, $sqlInsert)) {
         $idSPMoi = mysqli_insert_id($conn);
 
-        // Upload Ảnh
+        // 3. UPLOAD ẢNH ĐẠI DIỆN CHÍNH
         if (isset($_FILES['anh_sp']) && $_FILES['anh_sp']['name'] != "") {
-            $fileName = time() . "_" . basename($_FILES["anh_sp"]["name"]);
+            $fileName = time() . "_main_" . basename($_FILES["anh_sp"]["name"]);
             if (!file_exists("../../uploads/")) mkdir("../../uploads/", 0777, true);
-            if (move_uploaded_file($_FILES["anh_sp"]["tmp_name"], "../../uploads/" . $fileName)) {
-                mysqli_query($conn, "INSERT INTO AnhSanPham (IdSanPham, DuongDanAnh, LaAnhChinh) VALUES ('$idSPMoi', '$fileName', 1)");
-            }
+            move_uploaded_file($_FILES["anh_sp"]["tmp_name"], "../../uploads/" . $fileName);
+            mysqli_query($conn, "INSERT INTO AnhSanPham (IdSanPham, DuongDanAnh, LaAnhChinh) VALUES ('$idSPMoi', '$fileName', 1)");
         }
 
-        // Lưu Size & Màu (Biến thể)
+       // 4. LƯU BIẾN THỂ (SIZE & MÀU & ẢNH BIẾN THỂ)
         if (isset($_POST['size']) && isset($_POST['color'])) {
-            $qtyPerVariant = 10; $totalQty = 0;
-            foreach ($_POST['color'] as $mau) {
-                foreach ($_POST['size'] as $kichthuoc) {
-                    $skuVariant = $sku . "-M" . $mau . "-S" . $kichthuoc;
-                    @mysqli_query($conn, "INSERT INTO ChiTietSanPham (IdSanPham, IdMauSac, IdKichThuoc, SKU, SoLuong) VALUES ('$idSPMoi', '$mau', '$kichthuoc', '$skuVariant', '$qtyPerVariant')");
-                    $totalQty += $qtyPerVariant;
+            
+            // A. TÍNH TOÁN SỐ LƯỢNG CHIA ĐỀU
+            $countColor = count($_POST['color']);
+            $countSize = count($_POST['size']);
+            $totalVariants = $countColor * $countSize; // Tổng số dòng biến thể (VD: 9 dòng)
+            $totalStockInput = (int)$_POST['kho'];     // Tổng kho nhập vào (VD: 500)
+
+            $baseQty = 0;
+            $remainder = 0;
+
+            if ($totalVariants > 0 && $totalStockInput > 0) {
+                $baseQty = floor($totalStockInput / $totalVariants); // Số lượng cơ bản (500/9 = 55)
+                $remainder = $totalStockInput % $totalVariants;      // Số dư cần chia thêm (500%9 = 5)
+            }
+
+            $counter = 0; // Biến đếm để rải số dư
+            $realTotalQty = 0; // Tính lại tổng thực tế để update bảng cha
+            
+            // B. DUYỆT VÒNG LẶP ĐỂ LƯU
+            foreach ($_POST['color'] as $mauId) {
+                
+                // --- XỬ LÝ ẢNH RIÊNG CHO MÀU NÀY ---
+                $anhBienThe = 'NULL'; 
+                $inputName = "img_color_" . $mauId; 
+
+                if (isset($_FILES[$inputName]) && $_FILES[$inputName]['name'] != "") {
+                    $variantFileName = time() . "_var_" . $mauId . "_" . basename($_FILES[$inputName]["name"]);
+                    if (move_uploaded_file($_FILES[$inputName]["tmp_name"], "../../uploads/" . $variantFileName)) {
+                        $anhBienThe = "'$variantFileName'"; 
+                    }
+                }
+
+                // Duyệt từng size
+                foreach ($_POST['size'] as $kichthuocId) {
+                    $skuVariant = $sku . "-M" . $mauId . "-S" . $kichthuocId;
+                    
+                    // --- LOGIC CHIA KHO THÔNG MINH ---
+                    $qtyThisVariant = $baseQty;
+                    if ($counter < $remainder) {
+                        $qtyThisVariant += 1; // Cộng thêm 1 cho các biến thể đầu tiên cho đến khi hết số dư
+                    }
+                    $counter++;
+                    // ---------------------------------
+
+                    $sqlVar = "INSERT INTO ChiTietSanPham (IdSanPham, IdMauSac, IdKichThuoc, SKU, SoLuong, AnhBienThe) 
+                               VALUES ('$idSPMoi', '$mauId', '$kichthuocId', '$skuVariant', '$qtyThisVariant', $anhBienThe)";
+                    
+                    mysqli_query($conn, $sqlVar);
+                    $realTotalQty += $qtyThisVariant;
                 }
             }
-            if ($totalQty > 0) mysqli_query($conn, "UPDATE SanPham SET SoLuongTonKho = $totalQty WHERE Id=$idSPMoi");
-        }
-        echo "<script>alert('Đã thêm sản phẩm thành công!'); window.location='product.php';</script>";
+            
+            // Cập nhật tổng tồn kho cho sản phẩm cha (Chắc chắn bằng 500)
+            if ($realTotalQty > 0) mysqli_query($conn, "UPDATE SanPham SET SoLuongTonKho = $realTotalQty WHERE Id=$idSPMoi");
+        }   
+        echo "<script>alert('Đã thêm sản phẩm và biến thể thành công!'); window.location='product.php';</script>";
     } else {
         $err = mysqli_error($conn);
         echo "<script>alert('LỖI DATABASE: $err');</script>"; 
@@ -219,16 +260,40 @@ if (isset($_POST['submit'])) {
                                     </div>
                                 </div>
                                 <div class="col-md-6 ps-md-4">
-                                    <label class="d-block mb-2">Màu sắc:</label>
-                                    <div class="d-flex flex-wrap gap-2">
-                                        <?php while($m = mysqli_fetch_assoc($colors)): ?>
-                                            <div>
-                                                <input type="checkbox" name="color[]" value="<?php echo $m['Id']; ?>" id="color_<?php echo $m['Id']; ?>" class="color-checkbox">
-                                                <label for="color_<?php echo $m['Id']; ?>" class="color-label" style="background-color: <?php echo $m['MaMau']; ?>;" title="<?php echo $m['TenMau']; ?>"></label>
-                                            </div>
-                                        <?php endwhile; ?>
-                                    </div>
-                                </div>
+    <label class="d-block mb-2">Màu sắc & Ảnh biến thể:</label>
+    <div class="d-flex flex-wrap gap-3">
+        <?php 
+        // Reset lại con trỏ dữ liệu màu sắc để dùng lại
+        mysqli_data_seek($colors, 0);
+        while($m = mysqli_fetch_assoc($colors)): 
+        ?>
+            <div class="text-center p-2 border rounded bg-white" style="width: 100px;">
+                <div class="mb-2">
+                    <input type="checkbox" name="color[]" value="<?php echo $m['Id']; ?>" 
+                           id="color_<?php echo $m['Id']; ?>" 
+                           class="color-checkbox" 
+                           onchange="toggleImageInput(<?php echo $m['Id']; ?>)">
+                    
+                    <label for="color_<?php echo $m['Id']; ?>" class="color-label" 
+                           style="background-color: <?php echo $m['MaMau']; ?>; display:block; margin:0 auto;" 
+                           title="<?php echo $m['TenMau']; ?>">
+                    </label>
+                    <div class="small fw-bold mt-1"><?php echo $m['TenMau']; ?></div>
+                </div>
+
+                <div id="box_img_<?php echo $m['Id']; ?>" style="display:none;">
+                    <label class="btn btn-outline-secondary btn-sm p-0 w-100" style="font-size: 10px; height: 25px; line-height: 23px;">
+                        <i class="fas fa-camera"></i> Chọn ảnh
+                        <input type="file" name="img_color_<?php echo $m['Id']; ?>" hidden onchange="checkFile(this, <?php echo $m['Id']; ?>)">
+                    </label>
+                    <small id="fname_<?php echo $m['Id']; ?>" class="d-block text-truncate text-muted" style="font-size: 9px; max-width: 80px;">Chưa có ảnh</small>
+                </div>
+            </div>
+        <?php endwhile; ?>
+    </div>
+</div>
+
+
                             </div>
                         </div>
                     </div>
@@ -376,5 +441,19 @@ if (isset($_POST['submit'])) {
             }
         }
     </script>
+    <script>
+function toggleImageInput(id) {
+    const checkbox = document.getElementById('color_' + id);
+    const box = document.getElementById('box_img_' + id);
+    box.style.display = checkbox.checked ? 'block' : 'none';
+}
+
+function checkFile(input, id) {
+    if(input.files.length > 0) {
+        document.getElementById('fname_' + id).innerText = 'Đã chọn';
+        document.getElementById('fname_' + id).classList.add('text-success');
+    }
+}
+</script>
 </body>
 </html>

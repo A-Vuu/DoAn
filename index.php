@@ -70,12 +70,15 @@ include 'includes/header.php';
                       ORDER BY s.Id DESC LIMIT 4";
     include 'includes/product_list_partial.php';
     ?>
+    <div class="text-center mt-3 mb-5">
+        <a href="category.php?type=hot" class="btn btn-outline-dark px-4">Xem tất cả sản phẩm nổi bật <i class="bi bi-arrow-right"></i></a>
+    </div>
 
     <div id="san-pham-sale"> </div>
+    
     <?php
     $sectionTitle = "SẢN PHẨM ĐANG SALE";
     $sectionDesc  = "Săn deal hời - Giá tốt nhất hôm nay";
-    // Logic: Lấy sản phẩm có Giá KM nhỏ hơn Giá Gốc và lớn hơn 0
     $sqlQuery     = "SELECT s.*, a.DuongDanAnh 
                       FROM SanPham s 
                       LEFT JOIN AnhSanPham a ON s.Id = a.IdSanPham AND a.LaAnhChinh = 1 
@@ -83,11 +86,14 @@ include 'includes/header.php';
                       AND s.GiaKhuyenMai > 0 
                       AND s.GiaKhuyenMai < s.GiaGoc
                       ORDER BY s.Id DESC LIMIT 4"; 
-    
     include 'includes/product_list_partial.php';
     ?>
+    <div class="text-center mt-3 mb-5">
+        <a href="category.php?type=sale" class="btn btn-outline-dark px-4">Xem tất cả sản phẩm Sale <i class="bi bi-arrow-right"></i></a>
+    </div>
 
     <div id="hang-moi-ve"> </div>
+    
     <?php
     $sectionTitle = "HÀNG MỚI VỀ";
     $sectionDesc  = "Cập nhật xu hướng thời trang mới nhất";
@@ -98,8 +104,12 @@ include 'includes/header.php';
                       ORDER BY s.Id DESC LIMIT 8";
     include 'includes/product_list_partial.php';
     ?>
+    <div class="text-center mt-3 mb-5">
+        <a href="category.php?type=new" class="btn btn-outline-dark px-4">Xem tất cả hàng mới về <i class="bi bi-arrow-right"></i></a>
+    </div>
 
     <div id="tat-ca-san-pham"> </div>
+    
     <?php
     $sectionTitle = "TẤT CẢ SẢN PHẨM";
     $sectionDesc  = "Khám phá bộ sưu tập đầy đủ của NOVAWEAR";
@@ -111,9 +121,13 @@ include 'includes/header.php';
     include 'includes/product_list_partial.php';
     ?>
 
-    <div class="text-center mb-5">
-        <a href="category.php" class="btn btn-outline-dark px-5 py-2">Xem toàn bộ sản phẩm</a>
+    <div class="text-center mb-5 mt-3">
+        <a href="category.php" class="btn btn-dark px-5 py-2 fw-bold">XEM TOÀN BỘ KHO HÀNG</a>
     </div>
+
+    ```
+
+Sau khi sửa xong, bạn hãy thử tải lại trang chủ và bấm vào các nút mới thêm xem nó đã chuyển sang trang danh mục đúng loại chưa nhé!
 
     <div class="section-header text-center mt-5 mb-4">
         <h3 class="fw-bold text-uppercase">TIN THỜI TRANG</h3>

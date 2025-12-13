@@ -3,17 +3,19 @@ session_start();
 require_once 'config.php';
 include 'includes/header.php';
 
-// 1. NHẬN ID DANH MỤC TỪ URL
+// 1. NHẬN ID DANH MỤC HOẶC LOẠI SẢN PHẨM TỪ URL
 $catId = isset($_GET['id']) ? intval($_GET['id']) : 0;
+$type  = isset($_GET['type']) ? $_GET['type'] : ''; // Thêm dòng này
 
 // Các biến mặc định
 $categoryName = "Tất cả sản phẩm";
 $categoryDesc = "Khám phá bộ sưu tập đầy đủ của NOVAWEAR";
 $whereClause = "WHERE s.HienThi = 1"; // Mặc định lấy hết
 
-// 2. XỬ LÝ LOGIC KHI CÓ ID
+// 2. XỬ LÝ LOGIC
+
 if ($catId > 0) {
-    // Bước A: Lấy thông tin danh mục hiện tại (để hiển thị tiêu đề)
+    // --- TRƯỜNG HỢP 1: LỌC THEO DANH MỤC (Logic cũ giữ nguyên) ---
     $sqlCat = "SELECT TenDanhMuc, MoTa FROM DanhMucSanPham WHERE Id = $catId";
     $resCat = mysqli_query($conn, $sqlCat);
     
@@ -22,27 +24,38 @@ if ($catId > 0) {
         $categoryDesc = !empty($rowCat['MoTa']) ? $rowCat['MoTa'] : "Các sản phẩm thuộc danh mục " . $categoryName;
     }
 
-    // =================================================================
-    // LOGIC MỚI: TÌM DANH MỤC CON ĐỂ LẤY SẢN PHẨM CỦA CẢ CHA LẪN CON
-    // =================================================================
-    
-    // 1. Tạo mảng chứa ID cần lấy (Ban đầu chỉ chứa chính nó)
+    // Logic lấy danh mục con
     $listCatIds = [$catId];
-
-    // 2. Tìm các danh mục con (có IdDanhMucCha = ID hiện tại)
     $sqlChildren = "SELECT Id FROM DanhMucSanPham WHERE IdDanhMucCha = $catId";
     $resChildren = mysqli_query($conn, $sqlChildren);
-
     while ($child = mysqli_fetch_assoc($resChildren)) {
-        $listCatIds[] = $child['Id']; // Thêm ID con vào danh sách
+        $listCatIds[] = $child['Id'];
     }
-
-    // 3. Chuyển mảng ID thành chuỗi (ví dụ: "1,5,6")
     $listIdsString = implode(',', $listCatIds);
-
-    // Bước B: Sửa điều kiện lọc
-    // Thay vì dùng dấu = (chỉ lấy 1), ta dùng IN (lấy danh sách)
     $whereClause .= " AND s.IdDanhMuc IN ($listIdsString)";
+
+} elseif ($type != '') {
+    // --- TRƯỜNG HỢP 2: LỌC THEO LOẠI (Nổi bật, Sale, Mới) ---
+    switch ($type) {
+        case 'hot':
+            $categoryName = "SẢN PHẨM NỔI BẬT";
+            $categoryDesc = "Những sản phẩm được yêu thích nhất";
+            $whereClause .= " AND s.SanPhamNoiBat = 1";
+            break;
+            
+        case 'sale':
+            $categoryName = "SẢN PHẨM ĐANG SALE";
+            $categoryDesc = "Săn deal hời - Giá tốt nhất hôm nay";
+            // Logic lọc sản phẩm có giá khuyến mãi hợp lệ
+            $whereClause .= " AND s.GiaKhuyenMai > 0 AND s.GiaKhuyenMai < s.GiaGoc";
+            break;
+            
+        case 'new':
+            $categoryName = "HÀNG MỚI VỀ";
+            $categoryDesc = "Cập nhật xu hướng thời trang mới nhất";
+            $whereClause .= " AND s.SanPhamMoi = 1";
+            break;
+    }
 }
 
 // 3. THIẾT LẬP BIẾN CHO PARTIAL
@@ -51,16 +64,16 @@ $sectionDesc  = $categoryDesc;
 
 // 4. CẤU HÌNH LOAD MORE VÀ TRUY VẤN
 $enableLoadMore = true;
-$pageType = 'category';
-$pageId = $catId; // Truyền ID danh mục cho API Load More
+$pageType = 'category'; 
+// Lưu ý: Nếu bạn có file load_more_products.php, bạn cần sửa file đó để nhận diện $_POST['type']
+// Tạm thời biến $catId dùng cho danh mục, ta có thể truyền thêm input hidden nếu cần.
 
-// Query chính thức (Kết hợp với $whereClause đã xử lý ở trên)
+// Query chính thức
 $sqlQuery = "SELECT s.*, a.DuongDanAnh 
              FROM SanPham s 
              LEFT JOIN AnhSanPham a ON s.Id = a.IdSanPham AND a.LaAnhChinh = 1 
              $whereClause 
              ORDER BY s.Id DESC LIMIT 12";
-
 ?>
 
 <div class="container py-5">
@@ -73,6 +86,9 @@ $sqlQuery = "SELECT s.*, a.DuongDanAnh
 
     <?php include 'includes/product_list_partial.php'; ?>
     
+    <?php if($type != ''): ?>
+        <input type="hidden" id="filterType" value="<?php echo htmlspecialchars($type); ?>">
+    <?php endif; ?>
 </div>
 
-<?php include 'includes/footer.php'; ?> 
+<?php include 'includes/footer.php'; ?>

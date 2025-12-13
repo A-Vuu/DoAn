@@ -106,114 +106,116 @@ $catList = mysqli_query($conn, "SELECT * FROM DanhMucTinTuc");
     </div>
 
     <div class="main-content">
-        <h3 class="mb-4">Quản lý Tin tức & Bài viết</h3>
-        <div class="row">
-            <div class="col-md-5">
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-primary text-white">
-                        <strong><?php echo $dulieu_sua ? 'Cập nhật bài viết' : 'Đăng bài mới'; ?></strong>
-                    </div>
-                    <div class="card-body">
-                        <form method="POST" enctype="multipart/form-data">
-                            <?php if($dulieu_sua): ?>
-                                <input type="hidden" name="id_sua" value="<?php echo $dulieu_sua['Id']; ?>">
-                            <?php endif; ?>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Tiêu đề bài viết *</label>
-                                <input type="text" name="tieude" class="form-control" required value="<?php echo $dulieu_sua ? htmlspecialchars($dulieu_sua['TieuDe']) : ''; ?>">
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Chuyên mục</label>
-                                <select name="danhmuc" class="form-select">
-                                    <?php 
-                                    mysqli_data_seek($catList, 0);
-                                    while($c = mysqli_fetch_assoc($catList)): 
-                                        $sel = ($dulieu_sua && $dulieu_sua['IdDanhMuc'] == $c['Id']) ? 'selected' : '';
-                                    ?>
-                                        <option value="<?php echo $c['Id']; ?>" <?php echo $sel; ?>><?php echo $c['TenDanhMuc']; ?></option>
-                                    <?php endwhile; ?>
-                                </select>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Ảnh đại diện (Thumbnail)</label>
-                                <input type="file" name="anh" class="form-control">
-                                <?php if($dulieu_sua && $dulieu_sua['AnhDaiDien']): ?>
-                                    <div class="mt-2">
-                                        <img src="../../uploads/<?php echo $dulieu_sua['AnhDaiDien']; ?>" width="100" class="img-thumbnail">
-                                        <div class="small text-muted">Ảnh hiện tại</div>
-                                    </div>
+        <!-- <div class="container-fluid"> -->
+            <h3 class="mb-4">Quản lý Tin tức & Bài viết</h3>
+            <div class="row">
+                <div class="col-md-5">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <strong><?php echo $dulieu_sua ? 'Cập nhật bài viết' : 'Đăng bài mới'; ?></strong>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST" enctype="multipart/form-data">
+                                <?php if($dulieu_sua): ?>
+                                    <input type="hidden" name="id_sua" value="<?php echo $dulieu_sua['Id']; ?>">
                                 <?php endif; ?>
-                            </div>
 
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Tóm tắt ngắn</label>
-                                <textarea name="tomtat" class="form-control" rows="3"><?php echo $dulieu_sua ? htmlspecialchars($dulieu_sua['TomTat']) : ''; ?></textarea>
-                            </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Tiêu đề bài viết *</label>
+                                    <input type="text" name="tieude" class="form-control" required value="<?php echo $dulieu_sua ? htmlspecialchars($dulieu_sua['TieuDe']) : ''; ?>">
+                                </div>
 
-                            <div class="mb-3">
-                                <label class="form-label fw-bold">Nội dung chi tiết (Có thể chèn ảnh)</label>
-                                <textarea name="noidung" id="noidung" class="form-control" rows="10"><?php echo $dulieu_sua ? $dulieu_sua['NoiDung'] : ''; ?></textarea>
-                            </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Chuyên mục</label>
+                                    <select name="danhmuc" class="form-select">
+                                        <?php 
+                                        mysqli_data_seek($catList, 0);
+                                        while($c = mysqli_fetch_assoc($catList)): 
+                                            $sel = ($dulieu_sua && $dulieu_sua['IdDanhMuc'] == $c['Id']) ? 'selected' : '';
+                                        ?>
+                                            <option value="<?php echo $c['Id']; ?>" <?php echo $sel; ?>><?php echo $c['TenDanhMuc']; ?></option>
+                                        <?php endwhile; ?>
+                                    </select>
+                                </div>
 
-                            <button type="submit" name="save_news" class="btn btn-success w-100 fw-bold py-2">
-                                <i class="fa fa-save"></i> LƯU BÀI VIẾT
-                            </button>
-                            <?php if($dulieu_sua): ?>
-                                <a href="news.php" class="btn btn-secondary w-100 mt-2">Hủy bỏ chế độ sửa</a>
-                            <?php endif; ?>
-                        </form>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Ảnh đại diện (Thumbnail)</label>
+                                    <input type="file" name="anh" class="form-control">
+                                    <?php if($dulieu_sua && $dulieu_sua['AnhDaiDien']): ?>
+                                        <div class="mt-2">
+                                            <img src="../../uploads/<?php echo $dulieu_sua['AnhDaiDien']; ?>" width="100" class="img-thumbnail">
+                                            <div class="small text-muted">Ảnh hiện tại</div>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Tóm tắt ngắn</label>
+                                    <textarea name="tomtat" class="form-control" rows="3"><?php echo $dulieu_sua ? htmlspecialchars($dulieu_sua['TomTat']) : ''; ?></textarea>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Nội dung chi tiết (Có thể chèn ảnh)</label>
+                                    <textarea name="noidung" id="noidung" class="form-control" rows="10"><?php echo $dulieu_sua ? $dulieu_sua['NoiDung'] : ''; ?></textarea>
+                                </div>
+
+                                <button type="submit" name="save_news" class="btn btn-success w-100 fw-bold py-2">
+                                    <i class="fa fa-save"></i> LƯU BÀI VIẾT
+                                </button>
+                                <?php if($dulieu_sua): ?>
+                                    <a href="news.php" class="btn btn-secondary w-100 mt-2">Hủy bỏ chế độ sửa</a>
+                                <?php endif; ?>
+                            </form>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="col-md-7">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-white"><strong>Danh sách bài viết</strong></div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-striped align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th width="10%" class="text-center">Ảnh</th>
-                                        <th width="45%">Tiêu đề</th>
-                                        <th width="20%">Danh mục</th>
-                                        <th class="text-end pe-3">Hành động</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php while($row = mysqli_fetch_assoc($newsList)): ?>
-                                    <tr>
-                                        <td class="text-center">
-                                            <?php if($row['AnhDaiDien']): ?>
-                                                <img src="../../uploads/<?php echo $row['AnhDaiDien']; ?>" width="60" height="60" style="object-fit: cover; border-radius:4px;">
-                                            <?php else: ?>
-                                                <span class="badge bg-secondary">No img</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <div class="fw-bold text-dark"><?php echo $row['TieuDe']; ?></div>
-                                            <small class="text-muted">
-                                                <i class="bi bi-person"></i> <?php echo $row['TacGia']; ?> | 
-                                                <i class="bi bi-clock"></i> <?php echo date('d/m/Y', strtotime($row['NgayDang'])); ?>
-                                            </small>
-                                        </td>
-                                        <td><span class="badge bg-info text-dark"><?php echo $row['TenDanhMuc']; ?></span></td>
-                                        <td class="text-end pe-3">
-                                            <a href="news.php?edit=<?php echo $row['Id']; ?>" class="btn btn-sm btn-primary">Sửa</a>
-                                            <a href="news.php?delete=<?php echo $row['Id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('Bạn chắc chắn muốn xóa bài viết này?');">Xóa</a>
-                                        </td>
-                                    </tr>
-                                    <?php endwhile; ?>
-                                </tbody>
-                            </table>
+                <div class="col-md-7">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white"><strong>Danh sách bài viết</strong></div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-striped align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th width="10%" class="text-center">Ảnh</th>
+                                            <th width="45%">Tiêu đề</th>
+                                            <th width="20%">Danh mục</th>
+                                            <th class="text-end pe-3">Hành động</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php while($row = mysqli_fetch_assoc($newsList)): ?>
+                                        <tr>
+                                            <td class="text-center">
+                                                <?php if($row['AnhDaiDien']): ?>
+                                                    <img src="../../uploads/<?php echo $row['AnhDaiDien']; ?>" width="60" height="60" style="object-fit: cover; border-radius:4px;">
+                                                <?php else: ?>
+                                                    <span class="badge bg-secondary">No img</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <div class="fw-bold text-dark"><?php echo $row['TieuDe']; ?></div>
+                                                <small class="text-muted">
+                                                    <i class="bi bi-person"></i> <?php echo $row['TacGia']; ?> | 
+                                                    <i class="bi bi-clock"></i> <?php echo date('d/m/Y', strtotime($row['NgayDang'])); ?>
+                                                </small>
+                                            </td>
+                                            <td><span class="badge bg-info text-dark"><?php echo $row['TenDanhMuc']; ?></span></td>
+                                            <td class="text-end pe-3">
+                                                <a href="news.php?edit=<?php echo $row['Id']; ?>" class="btn btn-sm btn-primary">Sửa</a>
+                                                <a href="news.php?delete=<?php echo $row['Id']; ?>" class="btn btn-sm btn-danger" onclick="return confirm('Bạn chắc chắn muốn xóa bài viết này?');">Xóa</a>
+                                            </td>
+                                        </tr>
+                                        <?php endwhile; ?>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        <!-- </div> -->
     </div>
 
     <script>
