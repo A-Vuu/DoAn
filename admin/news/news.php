@@ -101,6 +101,7 @@ $catList = mysqli_query($conn, "SELECT * FROM DanhMucTinTuc");
             <a href="../product/product.php">Quản lý sản phẩm</a>
             <a href="news.php" class="active">Tin tức</a>
             <a href="../banner/banner.php">Quảng cáo</a>
+            <a href="../danhgia&chan/danhgia_chan.php">Đánh giá & chặn</a>
             <a href="../logout.php">Đăng xuất</a>
         </nav>
     </div>

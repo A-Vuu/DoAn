@@ -124,10 +124,7 @@ include 'includes/header.php';
     <div class="text-center mb-5 mt-3">
         <a href="category.php" class="btn btn-dark px-5 py-2 fw-bold">XEM TOÀN BỘ KHO HÀNG</a>
     </div>
-
-    ```
-
-Sau khi sửa xong, bạn hãy thử tải lại trang chủ và bấm vào các nút mới thêm xem nó đã chuyển sang trang danh mục đúng loại chưa nhé!
+<!-- Sau khi sửa xong, bạn hãy thử tải lại trang chủ và bấm vào các nút mới thêm xem nó đã chuyển sang trang danh mục đúng loại chưa nhé! -->
 
     <div class="section-header text-center mt-5 mb-4">
         <h3 class="fw-bold text-uppercase">TIN THỜI TRANG</h3>

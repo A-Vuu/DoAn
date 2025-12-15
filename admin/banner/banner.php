@@ -69,12 +69,8 @@ $banners = mysqli_query($conn, "SELECT * FROM Banner ORDER BY ViTri, ThuTu");
 <body>
     <div class="sidebar">
         <h4 class="text-center mb-4">NovaWear Admin</h4>
-        <div class="px-3 mb-3">
-
-            <img> <?php echo $_SESSION['admin_name']; ?>
-
-            <!-- <img src="https://via.placeholder.com/30" class="img-circle"> <?php echo $_SESSION['admin_name']; ?> -->
-
+        <div class="px-3 mb-3 text-white">
+             Xin chào, <strong><?php echo $_SESSION['admin_name']; ?></strong>
         </div>
 
         <hr style="border-color: #4f5962;">
@@ -83,6 +79,7 @@ $banners = mysqli_query($conn, "SELECT * FROM Banner ORDER BY ViTri, ThuTu");
             <a href="../product/product.php">Quản lý sản phẩm</a>
             <a href="../news/news.php">Tin tức</a>
             <a href="banner.php" class="active">Quảng cáo</a>
+            <a href="../danhgia&chan/danhgia_chan.php">Đánh giá & chặn</a>
             <a href="../logout.php">Đăng xuất</a>
         </nav>
     </div>
@@ -116,8 +113,7 @@ $banners = mysqli_query($conn, "SELECT * FROM Banner ORDER BY ViTri, ThuTu");
                                 <label class="form-label">Vị trí hiển thị</label>
                                 <select name="vitri" class="form-select">
                                     <option value="TrangChu" <?php echo ($dulieu_sua && $dulieu_sua['ViTri']=='TrangChu')?'selected':''; ?>>Slide Trang Chủ</option>
-                                    <option value="Sidebar" <?php echo ($dulieu_sua && $dulieu_sua['ViTri']=='Sidebar')?'selected':''; ?>>Cột bên (Sidebar)</option>
-                                    <option value="Footer" <?php echo ($dulieu_sua && $dulieu_sua['ViTri']=='Footer')?'selected':''; ?>>Chân trang</option>
+                                    <!--  -->
                                 </select>
                             </div>
 

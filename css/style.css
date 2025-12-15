@@ -570,3 +570,35 @@ a {
   color: #fff;
   border-color: rgba(10, 31, 68, 1);
 }
+
+/* ĐÁNH GIÁ */
+.rating {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: start;
+}
+.rating input {
+  display: none;
+}
+.rating label {
+  font-size: 2rem;
+  color: #ddd;
+  cursor: pointer;
+  padding: 0 5px;
+}
+.rating input:checked ~ label,
+.rating label:hover,
+.rating label:hover ~ label {
+  color: #f1c40f;
+}
+.star-display {
+  color: #f1c40f;
+}
+.review-date {
+  font-size: 0.85rem;
+  color: #999;
+}
+.admin-reply {
+  background-color: #f8f9fa;
+  border-left: 3px solid #0d6efd;
+}

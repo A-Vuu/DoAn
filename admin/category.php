@@ -83,8 +83,8 @@ $catDropdown = mysqli_query($conn, "SELECT * FROM DanhMucSanPham WHERE IdDanhMuc
 
     <div class="sidebar">
         <h4 class="text-center mb-4">NovaWear Admin</h4>
-        <div class="px-3 mb-3">
-             <img> <?php echo isset($_SESSION['admin_name']) ? $_SESSION['admin_name'] : 'Admin'; ?>
+        <div class="px-3 mb-3 text-white">
+             Xin chào, <strong><?php echo $_SESSION['admin_name']; ?></strong>
         </div>
         <hr style="border-color: #4f5962;">
         <nav>
@@ -92,6 +92,7 @@ $catDropdown = mysqli_query($conn, "SELECT * FROM DanhMucSanPham WHERE IdDanhMuc
             <a href="product/product.php" >Quản lý sản phẩm</a>
             <a href="news/news.php">Tin tức</a>
             <a href="banner/banner.php">Quảng cáo</a>
+            <a href="danhgia&chan/danhgia_chan.php">Đánh giá & chặn</a>
             <a href="logout.php">Đăng xuất</a>
         </nav>
     </div>

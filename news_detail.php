@@ -43,10 +43,10 @@ if (!$post) {
             </div>
 
             <div class="content-body" style="font-size: 1.1rem; line-height: 1.8;">
-                <?php 
-                // Hiển thị nội dung (cho phép HTML)
-                echo nl2br($post['NoiDung']); 
-                ?>
+
+                <div class="news-content">
+                    <?php echo $post['NoiDung']; ?> 
+                </div>
             </div>
             
             <!-- <div class="mt-5">

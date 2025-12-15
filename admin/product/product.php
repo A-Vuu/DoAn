@@ -20,15 +20,16 @@ $products = mysqli_query($conn, $sql);
 
     <div class="sidebar">
         <h4 class="text-center mb-4">NovaWear Admin</h4>
-        <div class="px-3 mb-3">
-            <img> <?php echo $_SESSION['admin_name']; ?>
-            </div>
+        <div class="px-3 mb-3 text-white">
+             Xin chào, <strong><?php echo $_SESSION['admin_name']; ?></strong>
+        </div>
         <hr style="border-color: #4f5962;">
         <nav>
             <a href="../category.php">Danh mục sản phẩm</a>
             <a href="product.php" class="active">Quản lý sản phẩm</a>
             <a href="../news/news.php" >Tin tức</a>
             <a href="../banner/banner.php">Quảng cáo</a>
+            <a href="../danhgia&chan/danhgia_chan.php">Đánh giá & chặn</a>
             <a href="../logout.php">Đăng xuất</a>
         </nav>
     </div>

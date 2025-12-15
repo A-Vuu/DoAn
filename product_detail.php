@@ -1,6 +1,46 @@
 <?php
 session_start();
 require_once 'config.php';
+
+// --- [FIXED] LOGIC CHẶN USER: KHÔNG ẢNH HƯỞNG ADMIN ---
+if (isset($_SESSION['user_id'])) {
+    // [QUAN TRỌNG] Nếu là Admin đang đăng nhập thì KHÔNG chạy logic này
+    if (!isset($_SESSION['admin_login'])) { 
+        
+        $currentUserId = $_SESSION['user_id'];
+        $sqlStatus = "SELECT TrangThai FROM nguoidung WHERE Id = $currentUserId";
+        $resStatus = mysqli_query($conn, $sqlStatus);
+        
+        if ($resStatus && mysqli_num_rows($resStatus) > 0) {
+            $userStatus = mysqli_fetch_assoc($resStatus);
+            
+            // Nếu bị chặn (TrangThai = 0)
+            if ($userStatus['TrangThai'] == 0) {
+                // 1. Xóa tất cả các biến trong session hiện tại
+                $_SESSION = array();
+
+                // 2. Xóa Cookie Session trên trình duyệt (để ngăn trình duyệt gửi lại ID cũ)
+                if (ini_get("session.use_cookies")) {
+                    $params = session_get_cookie_params();
+                    setcookie(session_name(), '', time() - 42000,
+                        $params["path"], $params["domain"],
+                        $params["secure"], $params["httponly"]
+                    );
+                }
+
+                // 3. Hủy session trên server
+                session_destroy();
+                
+                // 4. Chuyển hướng về trang chủ
+                header("Location: index.php"); 
+                exit(); 
+            }
+        }
+    }
+}
+// -------------------------------------------------------------
+// -------------------------------------------------------------
+
 include 'includes/header.php';
 
 // --- 1. LẤY ID SẢN PHẨM ---
@@ -18,6 +58,67 @@ if (!$product) {
     echo "<div class='container py-5 text-center'><h3>Không tìm thấy sản phẩm</h3></div>";
     include 'includes/footer.php'; exit();
 }
+
+// --- 2.0 KIỂM TRA NGƯỜI DÙNG ĐÃ ĐÁNH GIÁ CHƯA ---
+$hasReviewed = false;
+if (isset($_SESSION['user_id'])) {
+    $checkUid = $_SESSION['user_id'];
+    $sqlCheck = "SELECT Id FROM danhgiasanpham WHERE IdNguoiDung = $checkUid AND IdSanPham = $productId";
+    $resCheck = mysqli_query($conn, $sqlCheck);
+    if (mysqli_num_rows($resCheck) > 0) {
+        $hasReviewed = true;
+    }
+}
+
+// --- 2.1 XỬ LÝ GỬI ĐÁNH GIÁ ---
+$reviewMsg = "";
+if (isset($_POST['submit_review'])) {
+    if (isset($_SESSION['user_id'])) { 
+        
+        if ($hasReviewed) {
+             $reviewMsg = "<div class='alert alert-warning'>Bạn đã đánh giá sản phẩm này rồi!</div>";
+        } else {
+            $userId = $_SESSION['user_id'];
+            $rating = intval($_POST['rating']);
+            $title = mysqli_real_escape_string($conn, $_POST['title']);
+            $content = mysqli_real_escape_string($conn, $_POST['content']);
+            $currentDate = date('Y-m-d H:i:s');
+            
+            if ($rating < 1 || $rating > 5) $rating = 5;
+
+            $sqlReview = "INSERT INTO danhgiasanpham (IdSanPham, IdNguoiDung, IdDonHang, SoSao, TieuDe, NoiDung, TrangThai, NgayDanhGia) 
+                          VALUES ($productId, $userId, NULL, $rating, '$title', '$content', 1, '$currentDate')";
+            
+            if (mysqli_query($conn, $sqlReview)) {
+                $reviewMsg = "<div class='alert alert-success'>Cảm ơn bạn đã đánh giá sản phẩm!</div>";
+                $hasReviewed = true; 
+            } else {
+                $reviewMsg = "<div class='alert alert-danger'>Lỗi: " . mysqli_error($conn) . "</div>";
+            }
+        }
+    } else {
+        $reviewMsg = "<div class='alert alert-warning'>Vui lòng đăng nhập để đánh giá.</div>";
+    }
+}
+
+// --- 2.2 LẤY DANH SÁCH ĐÁNH GIÁ ---
+$sqlGetReviews = "SELECT d.*, n.HoTen 
+                  FROM danhgiasanpham d 
+                  LEFT JOIN nguoidung n ON d.IdNguoiDung = n.Id 
+                  WHERE d.IdSanPham = $productId AND d.TrangThai = 1 
+                  ORDER BY d.NgayDanhGia DESC";
+$resReviews = mysqli_query($conn, $sqlGetReviews);
+$reviewsList = [];
+$totalStars = 0;
+$countReviews = 0;
+
+while ($row = mysqli_fetch_assoc($resReviews)) {
+    $reviewsList[] = $row;
+    $totalStars += $row['SoSao'];
+    $countReviews++;
+}
+
+$avgRating = ($countReviews > 0) ? round($totalStars / $countReviews, 1) : 0;
 
 // --- 3. LẤY ẢNH GALLERY ---
 $resImgs = mysqli_query($conn, "SELECT * FROM AnhSanPham WHERE IdSanPham = $productId ORDER BY LaAnhChinh DESC");
@@ -37,7 +138,7 @@ $resVar = mysqli_query($conn, $sqlVariants);
 $variants = [];      
 $listColors = [];    
 $listSizes = [];
-$colorImageMap = []; // Map: IdMau => AnhBienThe
+$colorImageMap = []; 
 
 while ($row = mysqli_fetch_assoc($resVar)) {
     $variants[] = $row;
@@ -49,29 +150,51 @@ while ($row = mysqli_fetch_assoc($resVar)) {
         $listSizes[$row['IdKichThuoc']] = $row['TenKichThuoc'];
     }
     
-    // Nếu biến thể có ảnh riêng, lưu vào map để JS đổi ảnh
     if (!empty($row['AnhBienThe']) && !isset($colorImageMap[$row['IdMauSac']])) {
         $colorImageMap[$row['IdMauSac']] = $row['AnhBienThe'];
     }
 }
 
-// Gộp ảnh gallery và ảnh biến thể để hiển thị thumbnail (tránh trùng)
-$displayImages = $galleryImages; 
-foreach($colorImageMap as $imgVar) {
-    if(!in_array($imgVar, $displayImages)) {
-        $displayImages[] = $imgVar;
-    }
+$variantImagesOnly = array_values($colorImageMap);
+$variantImagesOnly = array_unique($variantImagesOnly);
+
+if (!empty($variantImagesOnly)) {
+    $displayImages = $variantImagesOnly;
+} else {
+    $displayImages = $galleryImages;
 }
 
 $jsonVariants = json_encode($variants);
 $jsonColorMap = json_encode($colorImageMap);
 ?>
 
+<!-- <style>
+    .rating {
+        display: flex;
+        flex-direction: row-reverse;
+        justify-content: start;
+    }
+    .rating input { display: none; }
+    .rating label {
+        font-size: 2rem;
+        color: #ddd;
+        cursor: pointer;
+        padding: 0 5px;
+    }
+    .rating input:checked ~ label,
+    .rating label:hover,
+    .rating label:hover ~ label {
+        color: #f1c40f; 
+    }
+    .star-display { color: #f1c40f; }
+    .review-date { font-size: 0.85rem; color: #999; }
+    .admin-reply { background-color: #f8f9fa; border-left: 3px solid #0d6efd; }
+</style> -->
+
 <div class="container py-5">
     <div class="row g-5">
         <div class="col-md-6">
             <div class="detail-gallery-container">
-                
                 <div class="gallery-sidebar no-scrollbar">
                     <?php 
                     $idx = 0;
@@ -87,7 +210,6 @@ $jsonColorMap = json_encode($colorImageMap);
                     endforeach; 
                     ?>
                 </div>
-
                 <div class="gallery-main">
                     <img id="mainImage" src="uploads/<?php echo $displayImages[0]; ?>">
                 </div>
@@ -98,7 +220,8 @@ $jsonColorMap = json_encode($colorImageMap);
             <h2 class="fw-bold"><?php echo $product['TenSanPham']; ?></h2>
             <div class="text-muted small mb-3">
                 Mã SP: <strong><?php echo $product['MaSanPham']; ?></strong> | 
-                Đã bán: <?php echo $product['DaBan']; ?>
+                Đã bán: <?php echo $product['DaBan']; ?> | 
+                <span class="star-display"><i class="fas fa-star"></i> <?php echo $avgRating; ?>/5</span> (<?php echo $countReviews; ?> đánh giá)
             </div>
             
             <div class="fs-3 fw-bold text-danger mb-4">
@@ -168,17 +291,125 @@ $jsonColorMap = json_encode($colorImageMap);
             <ul class="nav nav-tabs" id="productTab" role="tablist">
                 <li class="nav-item"><button class="nav-link active fw-bold text-dark" data-bs-toggle="tab" data-bs-target="#desc">MÔ TẢ SẢN PHẨM</button></li>
                 <li class="nav-item"><button class="nav-link fw-bold text-dark" data-bs-toggle="tab" data-bs-target="#policy">CHÍNH SÁCH ĐỔI TRẢ</button></li>
+                <li class="nav-item"><button class="nav-link fw-bold text-dark" data-bs-toggle="tab" data-bs-target="#review">ĐÁNH GIÁ (<?php echo $countReviews; ?>)</button></li>
             </ul>
+            
             <div class="tab-content p-4 border border-top-0 bg-white">
+                
                 <div class="tab-pane fade show active" id="desc">
-                    <?php echo !empty($product['MoTaChiTiet']) ? nl2br($product['MoTaChiTiet']) : "<p>Đang cập nhật...</p>"; ?>
+                    <div class="product-description-content">
+                         <?php echo !empty($product['MoTaChiTiet']) ? $product['MoTaChiTiet'] : "<p>Đang cập nhật...</p>"; ?>
+                    </div>
                 </div>
+
                 <div class="tab-pane fade" id="policy">
                     <h6>1. Điều kiện đổi trả</h6>
-                    <p>Sản phẩm còn nguyên tem mác, chưa qua sử dụng. Đổi trả trong 7 ngày.</p>
-                    <h6>2. Phí giao hàng</h6>
-                    <p>Miễn phí đổi hàng lỗi. Khách chịu phí ship nếu đổi size/màu.</p>
+                    <p>Khách hàng có thể đổi sản phẩm trong vòng 10 ngày kể từ ngày nhận hàng.</p>
+                    <p>Sản phẩm phải chưa qua sử dụng, còn nguyên tem mác như ban đầu.</p>
+                    <h6>2. Chi phí đổi hàng</h6>
+                    <p>Phí vận chuyển đổi hàng chỉ 20.000 VNĐ (áp dụng khi khách hàng đổi ý).</p>
+                    <p>SomeHow sẽ miễn phí giao lại hàng mới khi khách hàng đã gửi hàng đổi trả.</p>
                 </div>
+
+                <div class="tab-pane fade" id="review">
+                    <div class="row">
+                        <div class="col-md-4 mb-4 text-center border-end">
+                            <h1 class="display-3 fw-bold text-warning"><?php echo $avgRating; ?>/5</h1>
+                            <div class="star-display fs-4 mb-2">
+                                <?php 
+                                for($i=1; $i<=5; $i++) {
+                                    if($i <= round($avgRating)) echo '<i class="fas fa-star"></i>';
+                                    else echo '<i class="far fa-star"></i>';
+                                }
+                                ?>
+                            </div>
+                            <p class="text-muted">Dựa trên <?php echo $countReviews; ?> đánh giá</p>
+                        </div>
+
+                        <div class="col-md-8">
+                            <?php echo $reviewMsg; ?>
+                            
+                            <div class="card mb-4 bg-light border-0">
+                                <div class="card-body">
+                                    <h5 class="card-title fw-bold mb-3">Gửi đánh giá của bạn</h5>
+                                    
+                                    <?php if(isset($_SESSION['user_id'])): ?>
+                                        <?php if($hasReviewed): ?>
+                                            <div class="alert alert-info text-center border-0 shadow-sm">
+                                                <i class="fas fa-check-circle text-success fs-3 mb-2"></i><br>
+                                                <strong>Bạn đã đánh giá sản phẩm này rồi.</strong><br>
+                                                Cảm ơn bạn đã chia sẻ ý kiến!
+                                            </div>
+                                        <?php else: ?>
+                                            <form method="POST" action="">
+                                                <div class="mb-2">
+                                                    <label class="fw-bold">Chọn mức đánh giá:</label>
+                                                    <div class="rating">
+                                                        <input type="radio" name="rating" id="star5" value="5" checked onchange="updateTitle(5)"><label for="star5" title="Tuyệt vời">★</label>
+                                                        <input type="radio" name="rating" id="star4" value="4" onchange="updateTitle(4)"><label for="star4" title="Tốt">★</label>
+                                                        <input type="radio" name="rating" id="star3" value="3" onchange="updateTitle(3)"><label for="star3" title="Bình thường">★</label>
+                                                        <input type="radio" name="rating" id="star2" value="2" onchange="updateTitle(2)"><label for="star2" title="Kém">★</label>
+                                                        <input type="radio" name="rating" id="star1" value="1" onchange="updateTitle(1)"><label for="star1" title="Rất tệ">★</label>
+                                                    </div>
+                                                </div>
+
+                                                <div class="mb-3">
+                                                    <input type="text" name="title" id="reviewTitle" class="form-control" value="Rất hài lòng" readonly required>
+                                                </div>
+
+                                                <div class="mb-3">
+                                                    <textarea name="content" class="form-control" rows="3" placeholder="Chia sẻ cảm nhận chi tiết..." required></textarea>
+                                                </div>
+                                                <button type="submit" name="submit_review" class="btn btn-primary">Gửi đánh giá</button>
+                                            </form>
+                                        <?php endif; ?>
+
+                                    <?php else: ?>
+                                        <p class="mb-0">Vui lòng <a href="login.php" class="text-primary fw-bold">đăng nhập</a> để viết đánh giá.</p>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+
+                            <hr>
+
+                            <div class="review-list mt-4">
+                                <?php if($countReviews > 0): ?>
+                                    <?php foreach($reviewsList as $rv): ?>
+                                        <div class="mb-4 pb-3 border-bottom">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <h6 class="fw-bold mb-0">
+                                                    <?php echo !empty($rv['HoTen']) ? htmlspecialchars($rv['HoTen']) : 'Khách hàng ẩn danh'; ?>
+                                                </h6>
+                                                <span class="review-date"><?php echo date('d/m/Y H:i', strtotime($rv['NgayDanhGia'])); ?></span>
+                                            </div>
+                                            <div class="star-display small mb-2">
+                                                <?php for($k=1; $k<=5; $k++) {
+                                                    echo ($k <= $rv['SoSao']) ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
+                                                } ?>
+                                            </div>
+
+                                            <?php if(!empty($rv['TieuDe'])): ?>
+                                                <strong class="d-block mb-1"><?php echo htmlspecialchars($rv['TieuDe']); ?></strong>
+                                            <?php endif; ?>
+
+                                            <p class="mb-2 text-secondary"><?php echo nl2br(htmlspecialchars($rv['NoiDung'])); ?></p>
+                                            
+                                            <?php if(!empty($rv['PhanHoiQuanTri'])): ?>
+                                                <div class="admin-reply p-3 mt-2 rounded">
+                                                    <strong class="text-primary"><i class="fas fa-headset me-1"></i> NovaWear phản hồi:</strong>
+                                                    <p class="mb-0 mt-1 text-dark small"><?php echo nl2br(htmlspecialchars($rv['PhanHoiQuanTri'])); ?></p>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <p class="text-center text-muted">Chưa có đánh giá nào. Hãy là người đầu tiên!</p>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
@@ -241,11 +472,9 @@ $jsonColorMap = json_encode($colorImageMap);
         container.scrollLeft += direction * scrollAmount;
     }
 
-    // 2. Hàm đổi ảnh chính (dùng khi click thumb hoặc click màu)
+    // 2. Hàm đổi ảnh chính
     function changeMainImage(src, thumbEl) {
         document.getElementById('mainImage').src = src;
-        
-        // Highlight thumb nếu được click trực tiếp
         if(thumbEl) {
             document.querySelectorAll('.gallery-thumb').forEach(el => el.classList.remove('active'));
             thumbEl.classList.add('active');
@@ -254,26 +483,20 @@ $jsonColorMap = json_encode($colorImageMap);
 
     // 3. Logic Biến thể
     const variants = <?php echo $jsonVariants; ?>;
-    const colorMap = <?php echo $jsonColorMap; ?>; // Map: IdMau -> TenFileAnh
+    const colorMap = <?php echo $jsonColorMap; ?>; 
     let selectedColor = null;
     let selectedSize = null;
 
     function selectColor(btn, colorId) {
-        // Highlight nút màu
         document.querySelectorAll('.btn-color').forEach(el => el.classList.remove('active'));
         btn.classList.add('active');
         selectedColor = colorId;
         document.getElementById('inputColorId').value = colorId;
 
-        // Tự động chọn ảnh theo màu
         if(colorMap[colorId]) {
             const imgFileName = colorMap[colorId];
             const fullSrc = 'uploads/' + imgFileName;
-            
-            // Đổi ảnh chính
             changeMainImage(fullSrc, null); 
-
-            // Highlight thumbnail bên trái
             const thumbs = document.querySelectorAll('.gallery-thumb');
             thumbs.forEach(thumb => {
                 if(thumb.dataset.filename === imgFileName) {
@@ -285,7 +508,6 @@ $jsonColorMap = json_encode($colorImageMap);
             });
         }
 
-        // Reset Size
         selectedSize = null;
         document.getElementById('inputSizeId').value = '';
         document.querySelectorAll('.btn-size').forEach(el => {
@@ -346,6 +568,18 @@ $jsonColorMap = json_encode($colorImageMap);
         let newVal = parseInt(input.value) + delta;
         let max = parseInt(input.max) || 1;
         if (newVal >= 1 && newVal <= max) input.value = newVal;
+    }
+
+    // 4. Update Title Review
+    const titles = {
+        1: "Rất không hài lòng",
+        2: "Không hài lòng",
+        3: "Bình thường",
+        4: "Hài lòng",
+        5: "Rất hài lòng"
+    };
+    function updateTitle(star) {
+        document.getElementById('reviewTitle').value = titles[star];
     }
 </script>
 

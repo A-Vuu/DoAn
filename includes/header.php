@@ -14,6 +14,29 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+//     // =================================================================
+//     // Code xử lý chặn user
+//     // =================================================================
+
+// if (isset($_SESSION['user_id']) && !isset($_SESSION['admin_login'])) {
+
+//     $uid = (int)$_SESSION['user_id'];
+//     $sql = "SELECT TrangThai FROM nguoidung WHERE Id = $uid LIMIT 1";
+//     $res = mysqli_query($conn, $sql);
+
+//     if ($res && mysqli_num_rows($res) > 0) {
+//         $u = mysqli_fetch_assoc($res);
+
+//         if ($u['TrangThai'] == 0) {
+//             session_unset();
+//             session_destroy();
+
+//             header("Location: login.php?blocked=1");
+//             exit();
+//         }
+//     }
+// }
+
 // =================================================================
 // LOGIC TÍNH SỐ LƯỢNG GIỎ HÀNG (QUAN TRỌNG)
 // =================================================================
@@ -111,6 +134,9 @@ if (isset($conn)) {
         }
     }
 }
+
+
+
 ?>
 <!DOCTYPE html>
 <html lang="vi">
