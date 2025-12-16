@@ -602,3 +602,295 @@ a {
   background-color: #f8f9fa;
   border-left: 3px solid #0d6efd;
 }
+
+/* =========================================
+   13. PROFILE PAGE (HỒ SƠ NGƯỜI DÙNG)
+   ========================================= */
+.profile-hero {
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+}
+
+.profile-hero__header {
+  padding: 20px;
+  background: radial-gradient(circle at 20% 20%, rgba(255, 215, 0, 0.25), transparent 40%),
+    linear-gradient(135deg, rgba(10, 31, 68, 1) 0%, rgba(20, 44, 90, 1) 60%, rgba(10, 31, 68, 1) 100%);
+}
+
+.avatar-xxl {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  font-size: 32px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.badge-tier {
+  display: inline-block;
+  padding: 6px 12px;
+  background: rgba(255, 215, 0, 0.15);
+  color: #ffd700;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.4px;
+}
+
+.icon-box {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #f5f7fb;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(10, 31, 68, 1);
+  font-size: 16px;
+}
+
+.mini-stat {
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+
+.pill-tag {
+  display: inline-block;
+  padding: 6px 12px;
+  background: #f5f7fb;
+  color: #0a1f44;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.input-icon .input-group-text {
+  background: #f8f9fb;
+  border-right: 0;
+}
+
+.input-icon .form-control {
+  border-left: 0;
+}
+
+.quick-tile {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.quick-tile:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
+}
+
+.icon-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.bg-soft-primary {
+  background: rgba(13, 110, 253, 0.12);
+}
+
+.bg-soft-success {
+  background: rgba(25, 135, 84, 0.12);
+}
+
+.bg-soft-dark {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+/* Tabs cho hồ sơ */
+.profile-tabs {
+  gap: 10px;
+}
+
+.tab-btn {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #0a1f44;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  border-color: rgba(10, 31, 68, 1);
+  color: rgba(10, 31, 68, 1);
+}
+
+.tab-btn.active {
+  background: rgba(10, 31, 68, 1);
+  border-color: rgba(10, 31, 68, 1);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(10, 31, 68, 0.2);
+}
+
+/* Badge mềm cho trạng thái đơn hàng */
+.badge-soft-warning { background: rgba(255, 193, 7, 0.15); color: #b58100; }
+.badge-soft-info { background: rgba(13, 110, 253, 0.12); color: #0d6efd; }
+.badge-soft-primary { background: rgba(10, 31, 68, 0.12); color: #0a1f44; }
+.badge-soft-success { background: rgba(25, 135, 84, 0.12); color: #198754; }
+.badge-soft-danger { background: rgba(220, 53, 69, 0.12); color: #dc3545; }
+.badge-soft-secondary { background: rgba(108, 117, 125, 0.12); color: #6c757d; }
+/* =========================================
+   USER DROPDOWN MENU (HOVER MENU)
+   ========================================= */
+.user-dropdown-wrapper {
+  position: relative;
+}
+
+.user-dropdown-trigger {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.user-dropdown-trigger:hover {
+  color: #ffd700 !important;
+}
+
+/* Show dropdown menu on hover */
+@media (min-width: 992px) {
+  .user-dropdown-wrapper:hover .user-dropdown-menu {
+    display: block !important;
+    animation: dropdownSlideDown 0.2s ease-in-out;
+  }
+}
+
+.user-dropdown-menu {
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  width: 320px !important;
+  min-width: auto !important;
+  margin-top: 8px;
+  right: 0 !important;
+  left: auto !important;
+  animation-delay: 0.1s;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  padding: 0;
+}
+
+.user-dropdown-menu .dropdown-header {
+  padding: 10px 16px;
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  background-color: transparent;
+  border: none;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.user-dropdown-menu .dropdown-item {
+  padding: 10px 16px;
+  font-size: 0.95rem;
+  color: #333;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+}
+
+.user-dropdown-menu .dropdown-item:hover {
+  background-color: #f8f9fa;
+  color: #0a1f44;
+  border-left: 3px solid #ffd700;
+  padding-left: 18px;
+}
+
+.user-dropdown-menu .dropdown-item i {
+  width: 18px;
+  color: #666;
+  margin-right: 8px;
+}
+
+.user-dropdown-menu .dropdown-item:hover i {
+  color: #0a1f44;
+}
+
+.user-dropdown-menu .dropdown-item.text-danger {
+  color: #dc3545;
+}
+
+.user-dropdown-menu .dropdown-item.text-danger:hover {
+  background-color: rgba(220, 53, 69, 0.1);
+  color: #dc3545;
+  border-left: 3px solid #dc3545;
+}
+
+.user-dropdown-menu .dropdown-item.text-danger i {
+  color: #dc3545;
+}
+
+.user-dropdown-menu .dropdown-divider {
+  margin: 6px 0;
+  opacity: 0.6;
+}
+
+@keyframes dropdownSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* User Header & Quick Stats */
+.user-dropdown-header {
+  background: linear-gradient(135deg, rgba(10, 31, 68, 0.05) 0%, rgba(255, 215, 0, 0.05) 100%);
+  padding: 16px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.avatar-sm {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0a1f44 0%, #1a3a6b 100%) !important;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quick-stats {
+  background: #f8f9fa;
+  padding: 12px 16px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-around;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.stat-item {
+  flex: 1;
+  transition: all 0.2s ease;
+  padding: 8px 4px;
+  text-decoration: none;
+  color: inherit;
+  text-align: center;
+}
+
+.stat-item:hover {
+  color: #0a1f44;
+  text-decoration: none;
+}
+
+.user-dropdown-menu ul li {
+  list-style: none;
+}

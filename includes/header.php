@@ -223,16 +223,80 @@ if (isset($conn)) {
                     </a>
 
                     <?php if (isset($_SESSION['user_id'])): ?>
-                        <div class="dropdown">
-                            <a class="text-dark fs-5 nav-icon dropdown-toggle d-flex align-items-center" href="#" role="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
+                        <div class="dropdown user-dropdown-wrapper">
+                            <a class="text-dark fs-5 nav-icon d-flex align-items-center user-dropdown-trigger" href="#" role="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-user me-2"></i>
                                 <span class="d-none d-md-inline fw-bold"><?= htmlspecialchars($_SESSION['user_name']) ?></span>
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
-                                <li><a class="dropdown-item" href="profile.php">Hồ sơ</a></li>
-                                <li><a class="dropdown-item" href="change_password.php">Đổi mật khẩu</a></li>
-                                <li><a class="dropdown-item" href="logout.php">Đăng xuất</a></li>
-                            </ul>
+                            <div class="dropdown-menu dropdown-menu-end user-dropdown-menu" aria-labelledby="userMenu">
+                                <!-- User Header -->
+                                <div class="user-dropdown-header px-4 py-3 border-bottom">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="avatar-sm bg-gradient text-white d-flex align-items-center justify-content-center fw-bold fs-5">
+                                            <?php echo strtoupper(substr($_SESSION['user_name'], 0, 1)); ?>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <div class="fw-bold"><?= htmlspecialchars($_SESSION['user_name']) ?></div>
+                                            <div class="text-muted small"><?= htmlspecialchars($_SESSION['user_email'] ?? 'user@novawear.vn') ?></div>
+                                            <span class="badge bg-primary text-white" style="font-size: 0.65rem;">Thành viên</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Quick Stats -->
+                                <div class="quick-stats px-4 py-3 border-bottom d-flex gap-3 justify-content-around">
+                                    <?php
+                                    $uid = intval($_SESSION['user_id']);
+                                    $orderCount = 0;
+                                    $stmtCount = $conn->prepare('SELECT COUNT(*) as cnt FROM donhang WHERE IdNguoiDung = ?');
+                                    if ($stmtCount) {
+                                        $stmtCount->bind_param('i', $uid);
+                                        $stmtCount->execute();
+                                        $orderCount = intval($stmtCount->get_result()->fetch_assoc()['cnt']);
+                                        $stmtCount->close();
+                                    }
+                                    ?>
+                                    <a href="orders.php" class="text-center stat-item text-decoration-none small">
+                                        <div class="fw-bold text-dark"><?php echo $orderCount; ?></div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">Đơn hàng</div>
+                                    </a>
+                                    <a href="cart.php" class="text-center stat-item text-decoration-none small">
+                                        <div class="fw-bold text-dark"><?php echo $cartCount; ?></div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">Trong giỏ</div>
+                                    </a>
+                                    <div class="text-center stat-item">
+                                        <div class="fw-bold text-dark">0đ</div>
+                                        <div class="text-muted" style="font-size: 0.75rem;">Reward</div>
+                                    </div>
+                                </div>
+
+                                <!-- Account Management -->
+                                <div class="dropdown-header fw-bold text-muted small py-2 px-4">QUẢN LÝ TÀI KHOẢN</div>
+                                <ul class="list-unstyled mb-0 px-2">
+                                    <li><a class="dropdown-item" href="profile.php"><i class="fas fa-id-card me-2"></i>Hồ sơ cá nhân</a></li>
+                                    <li><a class="dropdown-item" href="orders.php"><i class="fas fa-receipt me-2"></i>Lịch sử đơn hàng</a></li>
+                                    <li><a class="dropdown-item" href="change_password.php"><i class="fas fa-lock me-2"></i>Đổi mật khẩu</a></li>
+                                </ul>
+
+                                <!-- Shortcuts -->
+                                <div class="dropdown-header fw-bold text-muted small py-2 px-4 mt-2">LIÊN KẾT NHANH</div>
+                                <ul class="list-unstyled mb-0 px-2">
+                                    <li><a class="dropdown-item" href="cart.php"><i class="fas fa-shopping-bag me-2"></i>Xem giỏ hàng</a></li>
+                                    <li><a class="dropdown-item" href="best_sellers.php"><i class="fas fa-star me-2"></i>Hàng bán chạy</a></li>
+                                    <li><a class="dropdown-item" href="index.php#hang-moi-ve"><i class="fas fa-package me-2"></i>Hàng mới về</a></li>
+                                </ul>
+
+                                <!-- Support -->
+                                <div class="dropdown-header fw-bold text-muted small py-2 px-4 mt-2">HỖ TRỢ</div>
+                                <ul class="list-unstyled mb-0 px-2">
+                                    <li><a class="dropdown-item" href="mailto:support@novawear.vn"><i class="fas fa-envelope me-2"></i>Liên hệ hỗ trợ</a></li>
+                                    <li><a class="dropdown-item" href="#"><i class="fas fa-question-circle me-2"></i>Câu hỏi thường gặp</a></li>
+                                </ul>
+
+                                <!-- Divider & Logout -->
+                                <hr class="dropdown-divider my-2">
+                                <a class="dropdown-item text-danger" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i>Đăng xuất</a>
+                            </div>
                         </div>
                     <?php else: ?>
                         <a href="login.php" class="text-dark fs-5 nav-icon">

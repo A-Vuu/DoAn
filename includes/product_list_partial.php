@@ -25,7 +25,8 @@ if (isset($sectionTitle) && !empty($sectionTitle)): ?>
             $isOutOfStock = ($row['SoLuongTonKho'] <= 0);
 
             // --- LẤY MÀU SẮC & ẢNH BIẾN THỂ (Để dùng cho chấm màu) ---
-            $sqlColors = "SELECT DISTINCT m.Id, m.TenMau, m.MaMau, ct.AnhBienThe 
+            // Không còn cột AnhBienThe trong ChiTietSanPham; chỉ lấy thông tin màu
+            $sqlColors = "SELECT DISTINCT m.Id, m.TenMau, m.MaMau
                           FROM ChiTietSanPham ct
                           JOIN MauSac m ON ct.IdMauSac = m.Id
                           WHERE ct.IdSanPham = $pId 
@@ -81,8 +82,8 @@ if (isset($sectionTitle) && !empty($sectionTitle)): ?>
                         foreach($colorsArr as $color): 
                             if($countC >= 5) { echo '<span class="small text-muted">+</span>'; break; }
                             
-                            // Logic: Nếu màu có ảnh biến thể thì dùng ảnh đó, nếu không thì dùng ảnh gốc
-                            $imgVariant = !empty($color['AnhBienThe']) ? $color['AnhBienThe'] : $mainImg;
+                            // Hiện không có ảnh biến thể riêng, dùng ảnh chính
+                            $imgVariant = $mainImg;
                             $maMau = !empty($color['MaMau']) ? $color['MaMau'] : '#ccc';
                         ?>
                             <div class="color-dot-wrapper" 
@@ -108,8 +109,15 @@ if (isset($sectionTitle) && !empty($sectionTitle)): ?>
                 <div class="text-muted small mb-2" style="font-size: 11px;">Đã bán: <?php echo $row['DaBan']; ?></div>
 
                 <?php if (!$isOutOfStock): ?>
-                    <div class="btn btn-outline-dark w-100 btn-view-detail" style="z-index: 2; position: relative;">
-                        <a href="product_detail.php?id=<?php echo $row['Id']; ?>" class="text-decoration-none text-inherit d-block">Xem chi tiết</a>
+                    <div class="d-flex gap-2 w-100" style="z-index: 2; position: relative;">
+                        <a href="product_detail.php?id=<?php echo $row['Id']; ?>" class="btn btn-outline-dark flex-fill btn-view-detail">Xem chi tiết</a>
+                        <form method="post" action="add_to_cart.php" class="flex-fill">
+                            <input type="hidden" name="product_id" value="<?php echo $row['Id']; ?>">
+                            <input type="hidden" name="quantity" value="1">
+                            <input type="hidden" name="color_id" value="0">
+                            <input type="hidden" name="size_id" value="0">
+                            <button type="submit" class="btn btn-dark w-100">Thêm giỏ</button>
+                        </form>
                     </div>
                 <?php else: ?>
                     <button class="btn btn-secondary w-100 rounded-0" disabled style="font-size: 13px;">Tạm hết hàng</button>
