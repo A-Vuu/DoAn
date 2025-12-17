@@ -26,7 +26,7 @@ if (isset($sectionTitle) && !empty($sectionTitle)): ?>
 
             // --- LẤY MÀU SẮC & ẢNH BIẾN THỂ (Để dùng cho chấm màu) ---
             // Không còn cột AnhBienThe trong ChiTietSanPham; chỉ lấy thông tin màu
-            $sqlColors = "SELECT DISTINCT m.Id, m.TenMau, m.MaMau, ct.AnhBienThe
+            $sqlColors = "SELECT DISTINCT m.Id, m.TenMau, m.MaMau
                           FROM ChiTietSanPham ct
                           JOIN MauSac m ON ct.IdMauSac = m.Id
                           WHERE ct.IdSanPham = $pId 

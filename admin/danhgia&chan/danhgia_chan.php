@@ -135,6 +135,7 @@ if (!empty($searchUser) || $filterUserStatus !== 'all') {
         <nav>
             <a href="../category.php">Danh mục sản phẩm</a>
             <a href="../product/product.php">Quản lý sản phẩm</a>
+            <a href="../orders/orders.php">Quản lý đơn hàng</a>
             <a href="../news/news.php">Tin tức</a>
             <a href="../banner/banner.php">Quảng cáo</a>
             <a href="danhgia_chan.php" class="active">Đánh giá & chặn</a>

@@ -77,6 +77,7 @@ $banners = mysqli_query($conn, "SELECT * FROM Banner ORDER BY ViTri, ThuTu");
         <nav>
             <a href="../category.php">Danh mục sản phẩm</a>
             <a href="../product/product.php">Quản lý sản phẩm</a>
+            <a href="../orders/orders.php">Quản lý đơn hàng</a>
             <a href="../news/news.php">Tin tức</a>
             <a href="banner.php" class="active">Quảng cáo</a>
             <a href="../danhgia&chan/danhgia_chan.php">Đánh giá & chặn</a>
