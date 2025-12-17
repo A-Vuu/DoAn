@@ -5,6 +5,10 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 require_once __DIR__ . '/config.php';
 
+if (empty($_SESSION['csrf_cart_token'])) {
+    $_SESSION['csrf_cart_token'] = bin2hex(random_bytes(32));
+}
+
 // ==========================================================================
 // 1. HÀM LẤY CHI TIẾT GIỎ HÀNG
 // ==========================================================================
@@ -81,6 +85,12 @@ $userId = isset($_SESSION['user_id']) ? intval($_SESSION['user_id']) : 0;
 // 3. XỬ LÝ CẬP NHẬT GIỎ HÀNG (QUAN TRỌNG)
 // ==========================================================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_cart'])) {
+    $token = $_POST['csrf_token'] ?? '';
+    if (!hash_equals($_SESSION['csrf_cart_token'], $token)) {
+        $_SESSION['cart_error'] = 'Phiên giỏ hàng không hợp lệ, vui lòng thử lại.';
+        header('Location: cart.php');
+        exit;
+    }
     
     // Lấy ID Giỏ hàng nếu đã đăng nhập
     $dbCartId = 0;
@@ -165,6 +175,11 @@ foreach ($cart as $it) { $subtotal += ($it['price'] * $it['qty']); }
                     <i class="fas fa-check-circle me-2"></i> <?php echo $_SESSION['cart_success']; unset($_SESSION['cart_success']); ?>
                 </div>
             <?php endif; ?>
+            <?php if (isset($_SESSION['cart_error'])): ?>
+                <div class="alert alert-danger d-flex align-items-center mb-4">
+                    <i class="fas fa-exclamation-triangle me-2"></i> <?php echo $_SESSION['cart_error']; unset($_SESSION['cart_error']); ?>
+                </div>
+            <?php endif; ?>
 
             <?php if (empty($cart)): ?>
                 <div class="text-center py-5 border rounded bg-white shadow-sm">
@@ -175,6 +190,7 @@ foreach ($cart as $it) { $subtotal += ($it['price'] * $it['qty']); }
             <?php else: ?>
                 <form method="post" action="cart.php" id="cartForm">
                     <input type="hidden" name="update_cart" value="1">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_cart_token']); ?>">
                     
                     <div class="table-responsive mb-4 shadow-sm border rounded bg-white">
                         <table class="table align-middle mb-0">
@@ -240,6 +256,7 @@ foreach ($cart as $it) { $subtotal += ($it['price'] * $it['qty']); }
 
 <form id="deleteForm" method="post" action="cart.php" style="display:none;">
     <input type="hidden" name="update_cart" value="1">
+    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_cart_token']); ?>">
 </form>
 
 <script>

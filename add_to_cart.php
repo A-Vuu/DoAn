@@ -30,10 +30,15 @@ if ($productId <= 0) {
     header('Location: index.php'); exit;
 }
 
-// Lấy thông tin sản phẩm
-$sql = "SELECT Id, TenSanPham, GiaGoc, GiaKhuyenMai, SoLuongTonKho FROM SanPham WHERE Id = $productId AND HienThi = 1 LIMIT 1";
-$res = mysqli_query($conn, $sql);
-$p = mysqli_fetch_assoc($res);
+// Lấy thông tin sản phẩm bằng prepared statement
+$p = null;
+if ($stmt = $conn->prepare("SELECT Id, TenSanPham, GiaGoc, GiaKhuyenMai, SoLuongTonKho FROM SanPham WHERE Id = ? AND HienThi = 1 LIMIT 1")) {
+    $stmt->bind_param('i', $productId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $p = $res->fetch_assoc();
+    $stmt->close();
+}
 
 if (!$p || $p['SoLuongTonKho'] <= 0) {
     $_SESSION['cart_error'] = 'Sản phẩm không khả dụng.';
@@ -46,14 +51,20 @@ $price = ($p['GiaKhuyenMai'] > 0 && $p['GiaKhuyenMai'] < $p['GiaGoc']) ? floatva
 
 // Lấy tên màu/size (để lưu vào ghi chú nếu cần)
 $colorName = "";
-if ($colorId > 0) {
-    $r = mysqli_fetch_assoc(mysqli_query($conn, "SELECT TenMau FROM mausac WHERE Id = $colorId"));
-    if ($r) $colorName = $r['TenMau'];
+if ($colorId > 0 && ($stmt = $conn->prepare("SELECT TenMau FROM mausac WHERE Id = ? LIMIT 1"))) {
+    $stmt->bind_param('i', $colorId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    if ($row = $res->fetch_assoc()) { $colorName = $row['TenMau']; }
+    $stmt->close();
 }
 $sizeName = "";
-if ($sizeId > 0) {
-    $r = mysqli_fetch_assoc(mysqli_query($conn, "SELECT TenKichThuoc FROM kichthuoc WHERE Id = $sizeId"));
-    if ($r) $sizeName = $r['TenKichThuoc'];
+if ($sizeId > 0 && ($stmt = $conn->prepare("SELECT TenKichThuoc FROM kichthuoc WHERE Id = ? LIMIT 1"))) {
+    $stmt->bind_param('i', $sizeId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    if ($row = $res->fetch_assoc()) { $sizeName = $row['TenKichThuoc']; }
+    $stmt->close();
 }
 
 // Lưu vào DB
