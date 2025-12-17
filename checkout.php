@@ -5,6 +5,11 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 require_once __DIR__ . '/config.php';
 
+// CSRF token cho trang checkout
+if (empty($_SESSION['csrf_checkout_token'])) {
+    $_SESSION['csrf_checkout_token'] = bin2hex(random_bytes(32));
+}
+
 // Bảo vệ: yêu cầu đăng nhập
 if (!isset($_SESSION['user_id'])) {
     $_SESSION['need_login_message'] = 'Vui lòng đăng nhập để thanh toán.';
@@ -42,9 +47,14 @@ function fetch_cart_for_checkout($conn, $userId) {
 
     // Lấy Id giỏ hàng từ DB (schema: giohang/chitietgiohang)
     $cartId = 0;
-    $resCart = mysqli_query($conn, "SELECT Id FROM giohang WHERE IdNguoiDung = $userId LIMIT 1");
-    if ($resCart && ($row = mysqli_fetch_assoc($resCart))) {
-        $cartId = intval($row['Id']);
+    if ($stmt = $conn->prepare('SELECT Id FROM giohang WHERE IdNguoiDung = ? LIMIT 1')) {
+        $stmt->bind_param('i', $userId);
+        $stmt->execute();
+        $resCart = $stmt->get_result();
+        if ($row = $resCart->fetch_assoc()) {
+            $cartId = intval($row['Id']);
+        }
+        $stmt->close();
     }
 
     if ($cartId > 0) {
@@ -56,24 +66,29 @@ function fetch_cart_for_checkout($conn, $userId) {
                 LEFT JOIN chitietsanpham var ON ct.IdChiTietSanPham = var.Id
                 LEFT JOIN mausac ms ON var.IdMauSac = ms.Id
                 LEFT JOIN kichthuoc kt ON var.IdKichThuoc = kt.Id
-                WHERE ct.IdGioHang = $cartId";
-        $result = mysqli_query($conn, $sql);
-        while ($row = mysqli_fetch_assoc($result)) {
-            $price = ($row['GiaKhuyenMai'] > 0 && $row['GiaKhuyenMai'] < $row['GiaGoc']) ? $row['GiaKhuyenMai'] : $row['GiaGoc'];
-            $cId = $row['IdMauSac'] ? intval($row['IdMauSac']) : 0;
-            $sId = $row['IdKichThuoc'] ? intval($row['IdKichThuoc']) : 0;
-            $key = $row['IdSanPham'] . '_' . $cId . '_' . $sId;
-            $cart[$key] = [
-                'key' => $key,
-                'product_id' => intval($row['IdSanPham']),
-                'name' => $row['TenSanPham'],
-                'price' => floatval($price),
-                'image' => $row['DuongDanAnh'] ? $row['DuongDanAnh'] : 'default.png',
-                'qty' => intval($row['SoLuong']),
-                'color_name' => $row['TenMau'] ?? '',
-                'size_name' => $row['TenKichThuoc'] ?? '',
-                'variant_id' => $row['IdChiTietSanPham'] ? intval($row['IdChiTietSanPham']) : null
-            ];
+                WHERE ct.IdGioHang = ?";
+        if ($stmtCart = $conn->prepare($sql)) {
+            $stmtCart->bind_param('i', $cartId);
+            $stmtCart->execute();
+            $result = $stmtCart->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $price = ($row['GiaKhuyenMai'] > 0 && $row['GiaKhuyenMai'] < $row['GiaGoc']) ? $row['GiaKhuyenMai'] : $row['GiaGoc'];
+                $cId = $row['IdMauSac'] ? intval($row['IdMauSac']) : 0;
+                $sId = $row['IdKichThuoc'] ? intval($row['IdKichThuoc']) : 0;
+                $key = $row['IdSanPham'] . '_' . $cId . '_' . $sId;
+                $cart[$key] = [
+                    'key' => $key,
+                    'product_id' => intval($row['IdSanPham']),
+                    'name' => $row['TenSanPham'],
+                    'price' => floatval($price),
+                    'image' => $row['DuongDanAnh'] ? $row['DuongDanAnh'] : 'default.png',
+                    'qty' => intval($row['SoLuong']),
+                    'color_name' => $row['TenMau'] ?? '',
+                    'size_name' => $row['TenKichThuoc'] ?? '',
+                    'variant_id' => $row['IdChiTietSanPham'] ? intval($row['IdChiTietSanPham']) : null
+                ];
+            }
+            $stmtCart->close();
         }
     } else {
         // Không có cart DB: thử lấy từ session
@@ -89,6 +104,11 @@ $cart = fetch_cart_for_checkout($conn, $userId);
 
 // Xử lý đặt hàng
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
+    $token = $_POST['csrf_token'] ?? '';
+    if (!hash_equals($_SESSION['csrf_checkout_token'], $token)) {
+        $errors[] = 'Phiên thanh toán không hợp lệ, vui lòng thử lại.';
+    }
+
     $name = trim($_POST['name'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
@@ -103,6 +123,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     if (empty($cart)) $errors[] = 'Giỏ hàng trống, không thể đặt hàng.';
 
     if (empty($errors)) {
+        // Kiểm tra tồn kho và tạo đơn trong transaction
+        $conn->begin_transaction();
+
         $orderCode = 'NW' . date('YmdHis') . rand(100, 999);
         $subtotal = 0;
         foreach ($cart as $item) {
@@ -112,51 +135,115 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         $discountAmount = 0;
         $grandTotal = $subtotal + $shippingCost - $discountAmount;
 
-        // Lưu đơn hàng theo schema donhang
-        $stmt = $conn->prepare("INSERT INTO donhang (MaDonHang, IdNguoiDung, TenNguoiNhan, EmailNguoiNhan, SoDienThoai, DiaChiGiaoHang, GhiChu, TongTienHang, PhiVanChuyen, GiamGia, TongThanhToan, PhuongThucThanhToan, TrangThaiThanhToan, TrangThaiDonHang) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ChuaThanhToan', 'ChoXacNhan')");
-        if ($stmt) {
-            $stmt->bind_param('sisssssdddds', $orderCode, $userId, $name, $email, $phone, $address, $note, $subtotal, $shippingCost, $discountAmount, $grandTotal, $payment);
-            if ($stmt->execute()) {
-                $orderId = $stmt->insert_id;
-                $stmt->close();
+        // Kiểm tồn kho từng dòng
+        foreach ($cart as $item) {
+            $qtyNeed = (int)$item['qty'];
+            $pid = (int)$item['product_id'];
+            $vid = $item['variant_id'] ?? null;
 
-                // Lưu chi tiết đơn hàng (schema: chitietdonhang)
-                $stmtDetail = $conn->prepare("INSERT INTO chitietdonhang (IdDonHang, IdSanPham, IdChiTietSanPham, TenSanPham, MauSac, KichThuoc, SKU, SoLuong, DonGia, ThanhTien) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                if ($stmtDetail) {
-                    foreach ($cart as $item) {
-                        $pid = $item['product_id'];
-                        $vid = $item['variant_id'] ?? null;
-                        $pname = $item['name'];
-                        $color = $item['color_name'];
-                        $size = $item['size_name'];
-                        $sku = '';
-                        $qty = $item['qty'];
-                        $price = $item['price'];
-                        $lineTotal = $qty * $price;
-                        $stmtDetail->bind_param('iiissssidd', $orderId, $pid, $vid, $pname, $color, $size, $sku, $qty, $price, $lineTotal);
-                        $stmtDetail->execute();
-                    }
-                    $stmtDetail->close();
+            if ($vid) {
+                $stmtStock = $conn->prepare('SELECT SoLuong FROM chitietsanpham WHERE Id = ? FOR UPDATE');
+                $stmtStock->bind_param('i', $vid);
+                $stmtStock->execute();
+                $rs = $stmtStock->get_result();
+                $rowStock = $rs->fetch_assoc();
+                $stmtStock->close();
+                if (!$rowStock || $rowStock['SoLuong'] < $qtyNeed) {
+                    $errors[] = 'Sản phẩm ' . htmlspecialchars($item['name']) . ' không đủ tồn kho.';
+                    break;
                 }
-
-                // Xóa giỏ hàng session & DB (schema: giohang/chitietgiohang)
-                $_SESSION['cart'] = [];
-                $resCart = mysqli_query($conn, "SELECT Id FROM giohang WHERE IdNguoiDung = $userId LIMIT 1");
-                if ($resCart && ($row = mysqli_fetch_assoc($resCart))) {
-                    $cid = intval($row['Id']);
-                    mysqli_query($conn, "DELETE FROM chitietgiohang WHERE IdGioHang = $cid");
-                    mysqli_query($conn, "DELETE FROM giohang WHERE Id = $cid");
-                }
-
-                $_SESSION['order_success'] = 'Đặt hàng thành công! Mã đơn ' . $orderCode . ' đang chờ xác nhận.';
-                header('Location: orders.php');
-                exit;
+                $newQty = $rowStock['SoLuong'] - $qtyNeed;
+                $stmtUpdate = $conn->prepare('UPDATE chitietsanpham SET SoLuong = ? WHERE Id = ?');
+                $stmtUpdate->bind_param('ii', $newQty, $vid);
+                $stmtUpdate->execute();
+                $stmtUpdate->close();
             } else {
-                $errors[] = 'Không thể tạo đơn hàng. Vui lòng thử lại.';
-                $stmt->close();
+                $stmtStock = $conn->prepare('SELECT SoLuongTonKho FROM sanpham WHERE Id = ? FOR UPDATE');
+                $stmtStock->bind_param('i', $pid);
+                $stmtStock->execute();
+                $rs = $stmtStock->get_result();
+                $rowStock = $rs->fetch_assoc();
+                $stmtStock->close();
+                if (!$rowStock || $rowStock['SoLuongTonKho'] < $qtyNeed) {
+                    $errors[] = 'Sản phẩm ' . htmlspecialchars($item['name']) . ' không đủ tồn kho.';
+                    break;
+                }
+                $newQty = $rowStock['SoLuongTonKho'] - $qtyNeed;
+                $stmtUpdate = $conn->prepare('UPDATE sanpham SET SoLuongTonKho = ? WHERE Id = ?');
+                $stmtUpdate->bind_param('ii', $newQty, $pid);
+                $stmtUpdate->execute();
+                $stmtUpdate->close();
             }
-        } else {
-            $errors[] = 'Không thể chuẩn bị truy vấn đặt hàng.';
+        }
+
+        if (!empty($errors)) {
+            $conn->rollback();
+        }
+
+        if (empty($errors)) {
+            // Lưu đơn hàng theo schema donhang
+            $stmt = $conn->prepare("INSERT INTO donhang (MaDonHang, IdNguoiDung, TenNguoiNhan, EmailNguoiNhan, SoDienThoai, DiaChiGiaoHang, GhiChu, TongTienHang, PhiVanChuyen, GiamGia, TongThanhToan, PhuongThucThanhToan, TrangThaiThanhToan, TrangThaiDonHang) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ChuaThanhToan', 'ChoXacNhan')");
+            if ($stmt) {
+                $stmt->bind_param('sisssssdddds', $orderCode, $userId, $name, $email, $phone, $address, $note, $subtotal, $shippingCost, $discountAmount, $grandTotal, $payment);
+                if ($stmt->execute()) {
+                    $orderId = $stmt->insert_id;
+                    $stmt->close();
+
+                    // Lưu chi tiết đơn hàng (schema: chitietdonhang)
+                    $stmtDetail = $conn->prepare("INSERT INTO chitietdonhang (IdDonHang, IdSanPham, IdChiTietSanPham, TenSanPham, MauSac, KichThuoc, SKU, SoLuong, DonGia, ThanhTien) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    if ($stmtDetail) {
+                        foreach ($cart as $item) {
+                            $pid = $item['product_id'];
+                            $vid = $item['variant_id'] ?? null;
+                            $pname = $item['name'];
+                            $color = $item['color_name'];
+                            $size = $item['size_name'];
+                            $sku = '';
+                            $qty = $item['qty'];
+                            $price = $item['price'];
+                            $lineTotal = $qty * $price;
+                            $stmtDetail->bind_param('iiissssidd', $orderId, $pid, $vid, $pname, $color, $size, $sku, $qty, $price, $lineTotal);
+                            $stmtDetail->execute();
+                        }
+                        $stmtDetail->close();
+                    }
+
+                    $conn->commit();
+
+                    // Xóa giỏ hàng session & DB (schema: giohang/chitietgiohang)
+                    $_SESSION['cart'] = [];
+                    if ($stmtClear = $conn->prepare('SELECT Id FROM giohang WHERE IdNguoiDung = ? LIMIT 1')) {
+                        $stmtClear->bind_param('i', $userId);
+                        $stmtClear->execute();
+                        $resCart = $stmtClear->get_result();
+                        if ($row = $resCart->fetch_assoc()) {
+                            $cid = intval($row['Id']);
+                            if ($delDetail = $conn->prepare('DELETE FROM chitietgiohang WHERE IdGioHang = ?')) {
+                                $delDetail->bind_param('i', $cid);
+                                $delDetail->execute();
+                                $delDetail->close();
+                            }
+                            if ($delCart = $conn->prepare('DELETE FROM giohang WHERE Id = ?')) {
+                                $delCart->bind_param('i', $cid);
+                                $delCart->execute();
+                                $delCart->close();
+                            }
+                        }
+                        $stmtClear->close();
+                    }
+
+                    $_SESSION['order_success'] = 'Đặt hàng thành công! Mã đơn ' . $orderCode . ' đang chờ xác nhận.';
+                    header('Location: orders.php');
+                    exit;
+                } else {
+                    $errors[] = 'Không thể tạo đơn hàng. Vui lòng thử lại.';
+                    $stmt->close();
+                    $conn->rollback();
+                }
+            } else {
+                $errors[] = 'Không thể chuẩn bị truy vấn đặt hàng.';
+                $conn->rollback();
+            }
         }
     }
 }
@@ -195,6 +282,7 @@ $prefillNote = $_POST['note'] ?? '';
 
                     <form method="post" class="row g-3">
                         <input type="hidden" name="place_order" value="1">
+                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_checkout_token']); ?>">
                         <div class="col-md-6">
                             <label class="form-label">Họ tên người nhận</label>
                             <input type="text" name="name" class="form-control" value="<?php echo htmlspecialchars($prefillName); ?>" required>
