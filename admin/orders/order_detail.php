@@ -33,6 +33,31 @@ function allowed_next_statuses($current)
     }
 }
 
+function restock_order($conn, $orderId) {
+    if ($stmt = $conn->prepare('SELECT IdSanPham, IdChiTietSanPham, SoLuong FROM chitietdonhang WHERE IdDonHang = ?')) {
+        $stmt->bind_param('i', $orderId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $qty = (int)$row['SoLuong'];
+            if (!empty($row['IdChiTietSanPham'])) {
+                if ($up = $conn->prepare('UPDATE chitietsanpham SET SoLuong = SoLuong + ? WHERE Id = ?')) {
+                    $up->bind_param('ii', $qty, $row['IdChiTietSanPham']);
+                    $up->execute();
+                    $up->close();
+                }
+            } else {
+                if ($up = $conn->prepare('UPDATE sanpham SET SoLuongTonKho = SoLuongTonKho + ? WHERE Id = ?')) {
+                    $up->bind_param('ii', $qty, $row['IdSanPham']);
+                    $up->execute();
+                    $up->close();
+                }
+            }
+        }
+        $stmt->close();
+    }
+}
+
 // Fetch order
 $order = null;
 if ($stmt = $conn->prepare("SELECT d.*, n.HoTen, n.Email as UserEmail, n.SoDienThoai as UserPhone FROM donhang d LEFT JOIN NguoiDung n ON d.IdNguoiDung = n.Id WHERE d.Id = ? LIMIT 1")) {
@@ -72,9 +97,24 @@ if (isset($_POST['update_status'])) {
             $error = 'Trạng thái không hợp lệ cho bước hiện tại.';
         } else {
             $noteAppend = $adminNote !== '' ? "\n[Admin] " . $adminNote : '';
-            if ($stmt = $conn->prepare('UPDATE donhang SET TrangThaiDonHang = ?, GhiChu = CONCAT(IFNULL(GhiChu, ""), ?) WHERE Id = ?')) {
+
+            $fields = ['TrangThaiDonHang = ?', 'GhiChu = CONCAT(IFNULL(GhiChu, ""), ?)'];
+            switch ($newStatus) {
+                case 'DaXacNhan': $fields[] = 'NgayXacNhan = NOW()'; break;
+                case 'DangGiao':  $fields[] = 'NgayGiaoHang = NOW()'; break;
+                case 'HoanThanh': $fields[] = 'NgayHoanThanh = NOW()'; break;
+                case 'DaHuy':     $fields[] = 'NgayHuy = NOW()'; break;
+            }
+
+            $sqlUpdate = 'UPDATE donhang SET ' . implode(', ', $fields) . ' WHERE Id = ?';
+            if ($stmt = $conn->prepare($sqlUpdate)) {
                 $stmt->bind_param('ssi', $newStatus, $noteAppend, $orderId);
                 if ($stmt->execute()) {
+                    // Hoàn trả tồn kho nếu hủy
+                    if ($newStatus === 'DaHuy') {
+                        restock_order($conn, $orderId);
+                    }
+
                     $msg = "Cập nhật trạng thái thành công!";
                     $order['TrangThaiDonHang'] = $newStatus;
                     if ($noteAppend !== '') {
@@ -301,6 +341,12 @@ if ($stmtItems = $conn->prepare("SELECT ct.*, (SELECT DuongDanAnh FROM AnhSanPha
                         <div class="timeline">
                             <?php 
                             $statuses = ['ChoXacNhan', 'DaXacNhan', 'DangGiao', 'HoanThanh'];
+                            $statusTimes = [
+                                'ChoXacNhan' => $order['NgayDatHang'] ?? null,
+                                'DaXacNhan' => $order['NgayXacNhan'] ?? null,
+                                'DangGiao' => $order['NgayGiaoHang'] ?? null,
+                                'HoanThanh' => $order['NgayHoanThanh'] ?? null,
+                            ];
                             $currentIdx = array_search($order['TrangThaiDonHang'], $statuses);
                             if ($order['TrangThaiDonHang'] == 'DaHuy') {
                                 $currentIdx = -1;
@@ -309,13 +355,14 @@ if ($stmtItems = $conn->prepare("SELECT ct.*, (SELECT DuongDanAnh FROM AnhSanPha
                                 $sInfo = $statusMap[$status];
                                 $isCompleted = ($idx < $currentIdx || ($idx == $currentIdx && $order['TrangThaiDonHang'] != 'DaHuy'));
                                 $isActive = ($idx == $currentIdx);
+                                $timeVal = $statusTimes[$status] ?? null;
                             ?>
                             <div class="timeline-item">
                                 <div class="timeline-dot <?php echo $isCompleted ? 'completed' : ($isActive ? 'active' : ''); ?>"></div>
                                 <div>
                                     <div class="timeline-label <?php echo $isActive ? 'text-primary' : ($isCompleted ? 'text-success' : ''); ?>"><?php echo $sInfo['label']; ?></div>
                                     <div class="timeline-time">
-                                        <?php if ($isActive || $isCompleted) { echo date('d/m/Y H:i', strtotime($order['NgayDatHang'])); } ?>
+                                        <?php if (($isActive || $isCompleted) && $timeVal) { echo date('d/m/Y H:i', strtotime($timeVal)); } ?>
                                     </div>
                                 </div>
                             </div>

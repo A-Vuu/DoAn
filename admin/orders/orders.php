@@ -24,6 +24,31 @@ function allowed_next_statuses($current)
     }
 }
 
+function restock_order($conn, $orderId) {
+    if ($stmt = $conn->prepare('SELECT IdSanPham, IdChiTietSanPham, SoLuong FROM chitietdonhang WHERE IdDonHang = ?')) {
+        $stmt->bind_param('i', $orderId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        while ($row = $res->fetch_assoc()) {
+            $qty = (int)$row['SoLuong'];
+            if (!empty($row['IdChiTietSanPham'])) {
+                if ($up = $conn->prepare('UPDATE chitietsanpham SET SoLuong = SoLuong + ? WHERE Id = ?')) {
+                    $up->bind_param('ii', $qty, $row['IdChiTietSanPham']);
+                    $up->execute();
+                    $up->close();
+                }
+            } else {
+                if ($up = $conn->prepare('UPDATE sanpham SET SoLuongTonKho = SoLuongTonKho + ? WHERE Id = ?')) {
+                    $up->bind_param('ii', $qty, $row['IdSanPham']);
+                    $up->execute();
+                    $up->close();
+                }
+            }
+        }
+        $stmt->close();
+    }
+}
+
 // ============================================
 // XỬ LÝ CẬP NHẬT TRẠNG THÁI NHANH
 // ============================================
@@ -57,10 +82,24 @@ if (isset($_POST['quick_update_status'])) {
         exit();
     }
 
-    if ($stmt = $conn->prepare('UPDATE donhang SET TrangThaiDonHang = ? WHERE Id = ?')) {
+    // Cập nhật trạng thái + mốc thời gian
+    $fields = ['TrangThaiDonHang = ?'];
+    switch ($newStatus) {
+        case 'DaXacNhan': $fields[] = 'NgayXacNhan = NOW()'; break;
+        case 'DangGiao':  $fields[] = 'NgayGiaoHang = NOW()'; break;
+        case 'HoanThanh': $fields[] = 'NgayHoanThanh = NOW()'; break;
+        case 'DaHuy':     $fields[] = 'NgayHuy = NOW()'; break;
+    }
+    $sqlUpdate = 'UPDATE donhang SET ' . implode(', ', $fields) . ' WHERE Id = ?';
+    if ($stmt = $conn->prepare($sqlUpdate)) {
         $stmt->bind_param('si', $newStatus, $orderId);
         $stmt->execute();
         $stmt->close();
+    }
+
+    // Hoàn trả tồn kho nếu hủy
+    if ($newStatus === 'DaHuy') {
+        restock_order($conn, $orderId);
     }
 
     // Ghi log vào lichsuhoatdong
