@@ -6,14 +6,77 @@ if (!isset($_SESSION['admin_login'])) {
     exit();
 }
 
+if (empty($_SESSION['admin_csrf'])) {
+    $_SESSION['admin_csrf'] = bin2hex(random_bytes(32));
+}
+
+function allowed_next_statuses($current)
+{
+    switch ($current) {
+        case 'ChoXacNhan':
+            return ['DaXacNhan', 'DaHuy'];
+        case 'DaXacNhan':
+            return ['DangGiao', 'DaHuy'];
+        case 'DangGiao':
+            return ['HoanThanh', 'DaHuy'];
+        default:
+            return [];
+    }
+}
+
 // ============================================
 // XỬ LÝ CẬP NHẬT TRẠNG THÁI NHANH
 // ============================================
 if (isset($_POST['quick_update_status'])) {
+    $token = $_POST['csrf_token'] ?? '';
+    if (!hash_equals($_SESSION['admin_csrf'], $token)) {
+        $_SESSION['admin_msg'] = "Phiên không hợp lệ.";
+        header("Location: orders.php" . ($_GET ? '?' . http_build_query($_GET) : ''));
+        exit();
+    }
+
     $orderId = intval($_POST['order_id']);
-    $newStatus = mysqli_real_escape_string($conn, $_POST['new_status']);
-    
-    mysqli_query($conn, "UPDATE donhang SET TrangThaiDonHang = '$newStatus' WHERE Id = $orderId");
+    $newStatus = $_POST['new_status'] ?? '';
+
+    // Lấy trạng thái hiện tại
+    $currentStatus = null;
+    if ($stmt = $conn->prepare('SELECT TrangThaiDonHang FROM donhang WHERE Id = ? LIMIT 1')) {
+        $stmt->bind_param('i', $orderId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        if ($row = $res->fetch_assoc()) {
+            $currentStatus = $row['TrangThaiDonHang'];
+        }
+        $stmt->close();
+    }
+
+    $allowed = allowed_next_statuses($currentStatus);
+    if (!$currentStatus || !in_array($newStatus, $allowed, true)) {
+        $_SESSION['admin_msg'] = "Trạng thái không hợp lệ hoặc đã hoàn tất.";
+        header("Location: orders.php" . ($_GET ? '?' . http_build_query($_GET) : ''));
+        exit();
+    }
+
+    if ($stmt = $conn->prepare('UPDATE donhang SET TrangThaiDonHang = ? WHERE Id = ?')) {
+        $stmt->bind_param('si', $newStatus, $orderId);
+        $stmt->execute();
+        $stmt->close();
+    }
+
+    // Ghi log vào lichsuhoatdong
+    $adminId = $_SESSION['admin_id'] ?? null;
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+    if ($stmtLog = $conn->prepare('INSERT INTO lichsuhoatdong (IdNguoiDung, IdAdmin, LoaiNguoiThucHien, HanhDong, BangDuLieu, IdBanGhi, NoiDung, DiaChiIP) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')) {
+        $nullUser = null;
+        $actor = 'admin';
+        $action = 'UpdateStatus';
+        $table = 'donhang';
+        $content = 'Chuyển trạng thái sang ' . $newStatus;
+        $stmtLog->bind_param('iisssiss', $nullUser, $adminId, $actor, $action, $table, $orderId, $content, $ip);
+        $stmtLog->execute();
+        $stmtLog->close();
+    }
+
     $_SESSION['admin_msg'] = "Đã cập nhật trạng thái đơn hàng #$orderId";
     header("Location: orders.php" . ($_GET ? '?' . http_build_query($_GET) : ''));
     exit();
@@ -508,6 +571,7 @@ unset($_SESSION['admin_msg']);
         <input type="hidden" name="quick_update_status" value="1">
         <input type="hidden" name="order_id" id="quick_order_id">
         <input type="hidden" name="new_status" id="quick_new_status">
+        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['admin_csrf']); ?>">
     </form>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

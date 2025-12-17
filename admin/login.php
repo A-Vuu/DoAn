@@ -12,6 +12,7 @@ if (isset($_POST['login'])) {
     if (mysqli_num_rows($result) > 0) {
         $row = mysqli_fetch_assoc($result);
         $_SESSION['admin_login'] = true;
+        $_SESSION['admin_id'] = $row['Id'];
         $_SESSION['admin_name'] = $row['HoTen'];
         header("Location: product/product.php"); // Chuyển thẳng vào trang sản phẩm
     } else {

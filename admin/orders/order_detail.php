@@ -6,6 +6,10 @@ if (!isset($_SESSION['admin_login'])) {
     exit();
 }
 
+if (empty($_SESSION['admin_csrf'])) {
+    $_SESSION['admin_csrf'] = bin2hex(random_bytes(32));
+}
+
 $orderId = isset($_GET['id']) ? intval($_GET['id']) : 0;
 if ($orderId <= 0) {
     header("Location: orders.php");
@@ -15,46 +19,33 @@ if ($orderId <= 0) {
 $msg = '';
 $error = '';
 
-// Handle status update
-if (isset($_POST['update_status'])) {
-    $newStatus = mysqli_real_escape_string($conn, $_POST['new_status']);
-    $adminNote = mysqli_real_escape_string($conn, $_POST['admin_note']);
-
-    $updateSql = "UPDATE donhang SET TrangThaiDonHang = '$newStatus'";
-    if (!empty($adminNote)) {
-        $updateSql .= ", GhiChu = CONCAT(IFNULL(GhiChu, ''), '\n[Admin] $adminNote')";
-    }
-    $updateSql .= " WHERE Id = $orderId";
-
-    if (mysqli_query($conn, $updateSql)) {
-        $msg = "Cập nhật trạng thái thành công!";
-    } else {
-        $error = "Lỗi: " . mysqli_error($conn);
+function allowed_next_statuses($current)
+{
+    switch ($current) {
+        case 'ChoXacNhan':
+            return ['DaXacNhan', 'DaHuy'];
+        case 'DaXacNhan':
+            return ['DangGiao', 'DaHuy'];
+        case 'DangGiao':
+            return ['HoanThanh', 'DaHuy'];
+        default:
+            return [];
     }
 }
 
 // Fetch order
-$sql = "SELECT d.*, n.HoTen, n.Email as UserEmail, n.SoDienThoai as UserPhone
-        FROM donhang d
-        LEFT JOIN NguoiDung n ON d.IdNguoiDung = n.Id
-        WHERE d.Id = $orderId";
-$result = mysqli_query($conn, $sql);
-$order = mysqli_fetch_assoc($result);
+$order = null;
+if ($stmt = $conn->prepare("SELECT d.*, n.HoTen, n.Email as UserEmail, n.SoDienThoai as UserPhone FROM donhang d LEFT JOIN NguoiDung n ON d.IdNguoiDung = n.Id WHERE d.Id = ? LIMIT 1")) {
+    $stmt->bind_param('i', $orderId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $order = $res->fetch_assoc();
+    $stmt->close();
+}
 
 if (!$order) {
     header("Location: orders.php");
     exit();
-}
-
-// Fetch items
-$sqlItems = "SELECT ct.*, 
-             (SELECT DuongDanAnh FROM AnhSanPham WHERE IdSanPham = ct.IdSanPham AND LaAnhChinh = 1 LIMIT 1) as AnhSanPham
-             FROM chitietdonhang ct
-             WHERE ct.IdDonHang = $orderId";
-$itemsResult = mysqli_query($conn, $sqlItems);
-$items = [];
-while ($row = mysqli_fetch_assoc($itemsResult)) {
-    $items[] = $row;
 }
 
 // Status map
@@ -66,20 +57,63 @@ $statusMap = [
     'DaHuy' => ['label' => 'Đã hủy', 'class' => 'danger', 'icon' => 'times-circle']
 ];
 
+$availableNextStatuses = allowed_next_statuses($order['TrangThaiDonHang']);
+
+// Handle status update
+if (isset($_POST['update_status'])) {
+    $token = $_POST['csrf_token'] ?? '';
+    if (!hash_equals($_SESSION['admin_csrf'], $token)) {
+        $error = 'Phiên không hợp lệ, vui lòng thử lại.';
+    } else {
+        $newStatus = $_POST['new_status'] ?? '';
+        $adminNote = trim($_POST['admin_note'] ?? '');
+
+        if (!in_array($newStatus, $availableNextStatuses, true)) {
+            $error = 'Trạng thái không hợp lệ cho bước hiện tại.';
+        } else {
+            $noteAppend = $adminNote !== '' ? "\n[Admin] " . $adminNote : '';
+            if ($stmt = $conn->prepare('UPDATE donhang SET TrangThaiDonHang = ?, GhiChu = CONCAT(IFNULL(GhiChu, ""), ?) WHERE Id = ?')) {
+                $stmt->bind_param('ssi', $newStatus, $noteAppend, $orderId);
+                if ($stmt->execute()) {
+                    $msg = "Cập nhật trạng thái thành công!";
+                    $order['TrangThaiDonHang'] = $newStatus;
+                    if ($noteAppend !== '') {
+                        $order['GhiChu'] = ($order['GhiChu'] ?? '') . $noteAppend;
+                    }
+                    $availableNextStatuses = allowed_next_statuses($order['TrangThaiDonHang']);
+                } else {
+                    $error = 'Không thể cập nhật trạng thái.';
+                }
+                $stmt->close();
+            }
+
+            // Ghi log
+            $adminId = $_SESSION['admin_id'] ?? null;
+            $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+            if ($stmtLog = $conn->prepare('INSERT INTO lichsuhoatdong (IdNguoiDung, IdAdmin, LoaiNguoiThucHien, HanhDong, BangDuLieu, IdBanGhi, NoiDung, DiaChiIP) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')) {
+                $nullUser = null;
+                $actor = 'admin';
+                $action = 'UpdateStatus';
+                $table = 'donhang';
+                $content = 'Chuyển trạng thái sang ' . $newStatus . ($adminNote ? (' | Ghi chú: ' . $adminNote) : '');
+                $stmtLog->bind_param('iisssiss', $nullUser, $adminId, $actor, $action, $table, $orderId, $content, $ip);
+                $stmtLog->execute();
+                $stmtLog->close();
+            }
+        }
+    }
+}
 $currentStatus = $statusMap[$order['TrangThaiDonHang']] ?? ['label' => 'N/A', 'class' => 'secondary', 'icon' => 'question'];
 $orderDate = date('d/m/Y H:i', strtotime($order['NgayDatHang']));
 
-$availableNextStatuses = [];
-switch ($order['TrangThaiDonHang']) {
-    case 'ChoXacNhan':
-        $availableNextStatuses = ['DaXacNhan', 'DaHuy'];
-        break;
-    case 'DaXacNhan':
-        $availableNextStatuses = ['DangGiao', 'DaHuy'];
-        break;
-    case 'DangGiao':
-        $availableNextStatuses = ['HoanThanh', 'DaHuy'];
-        break;
+// Fetch items
+$items = [];
+if ($stmtItems = $conn->prepare("SELECT ct.*, (SELECT DuongDanAnh FROM AnhSanPham WHERE IdSanPham = ct.IdSanPham AND LaAnhChinh = 1 LIMIT 1) as AnhSanPham FROM chitietdonhang ct WHERE ct.IdDonHang = ?")) {
+    $stmtItems->bind_param('i', $orderId);
+    $stmtItems->execute();
+    $itemsRes = $stmtItems->get_result();
+    while ($row = $itemsRes->fetch_assoc()) { $items[] = $row; }
+    $stmtItems->close();
 }
 ?>
 
@@ -355,6 +389,7 @@ switch ($order['TrangThaiDonHang']) {
                     <div class="panel no-print">
                         <h5><i class="fas fa-edit me-1"></i>Cập nhật trạng thái</h5>
                         <form method="POST" action="">
+                            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['admin_csrf']); ?>">
                             <div class="mb-2">
                                 <label class="form-label fw-semibold">Trạng thái mới</label>
                                 <select name="new_status" class="form-select" required>
