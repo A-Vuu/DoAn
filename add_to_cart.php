@@ -49,6 +49,34 @@ if (!$p || $p['SoLuongTonKho'] <= 0) {
 // Tính giá
 $price = ($p['GiaKhuyenMai'] > 0 && $p['GiaKhuyenMai'] < $p['GiaGoc']) ? floatval($p['GiaKhuyenMai']) : floatval($p['GiaGoc']);
 
+// Kiểm tra tồn kho theo biến thể (nếu có)
+if ($colorId > 0 && $sizeId > 0) {
+    if ($stmt = $conn->prepare('SELECT SoLuong FROM ChiTietSanPham WHERE IdSanPham = ? AND IdMauSac = ? AND IdKichThuoc = ? LIMIT 1')) {
+        $stmt->bind_param('iii', $productId, $colorId, $sizeId);
+        $stmt->execute();
+        $rs = $stmt->get_result();
+        if ($rowStock = $rs->fetch_assoc()) {
+            if ($rowStock['SoLuong'] < $qty) {
+                $_SESSION['cart_error'] = 'Số lượng tồn không đủ cho biến thể đã chọn.';
+                header("Location: product_detail.php?id=$productId");
+                exit;
+            }
+        } else {
+            $_SESSION['cart_error'] = 'Biến thể không khả dụng.';
+            header("Location: product_detail.php?id=$productId");
+            exit;
+        }
+        $stmt->close();
+    }
+} else {
+    // Kiểm tra tồn kho tổng của sản phẩm
+    if ($p['SoLuongTonKho'] < $qty) {
+        $_SESSION['cart_error'] = 'Số lượng tồn không đủ.';
+        header("Location: product_detail.php?id=$productId");
+        exit;
+    }
+}
+
 // Lấy tên màu/size (để lưu vào ghi chú nếu cần)
 $colorName = "";
 if ($colorId > 0 && ($stmt = $conn->prepare("SELECT TenMau FROM mausac WHERE Id = ? LIMIT 1"))) {

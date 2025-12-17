@@ -72,6 +72,33 @@ function get_db_cart_details($conn, $userId) {
     return $cart;
 }
 
+function fetch_stock($conn, $productId, $colorId, $sizeId) {
+    if ($colorId > 0 && $sizeId > 0) {
+        if ($stmt = $conn->prepare('SELECT SoLuong FROM ChiTietSanPham WHERE IdSanPham = ? AND IdMauSac = ? AND IdKichThuoc = ? LIMIT 1')) {
+            $stmt->bind_param('iii', $productId, $colorId, $sizeId);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($row = $res->fetch_assoc()) {
+                $stmt->close();
+                return (int)$row['SoLuong'];
+            }
+            $stmt->close();
+        }
+        return 0;
+    }
+    if ($stmt = $conn->prepare('SELECT SoLuongTonKho FROM SanPham WHERE Id = ? LIMIT 1')) {
+        $stmt->bind_param('i', $productId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        if ($row = $res->fetch_assoc()) {
+            $stmt->close();
+            return (int)$row['SoLuongTonKho'];
+        }
+        $stmt->close();
+    }
+    return 0;
+}
+
 // ==========================================================================
 // 2. KHỞI TẠO
 // ==========================================================================
@@ -99,8 +126,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_cart'])) {
         if ($row = mysqli_fetch_assoc($r)) $dbCartId = $row['Id'];
     }
 
+    $stockErrors = [];
+
     foreach ($_POST['qty'] as $key => $q) {
         $q = intval($q);
+        $parts = explode('_', $key);
+        if (count($parts) != 3) { continue; }
+        $pId = intval($parts[0]);
+        $cId = intval($parts[1]);
+        $sId = intval($parts[2]);
+
+        $stock = fetch_stock($conn, $pId, $cId, $sId);
+        if ($stock <= 0) {
+            $q = 0; // hết hàng
+            $stockErrors[] = 'Sản phẩm hết hàng, đã xóa khỏi giỏ.';
+        } elseif ($q > $stock) {
+            $q = $stock;
+            $stockErrors[] = 'Số lượng vượt tồn kho, đã điều chỉnh tối đa ' . $stock;
+        }
         
         // --- A. XỬ LÝ CHO KHÁCH (SESSION) ---
         if (isset($_SESSION['cart'][$key])) {
@@ -145,6 +188,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_cart'])) {
         }
     }
     
+    if (!empty($stockErrors)) {
+        $_SESSION['cart_error'] = implode(' ', $stockErrors);
+    }
+
     $_SESSION['cart_success'] = 'Đã cập nhật giỏ hàng!';
     header('Location: cart.php'); exit;
 }
