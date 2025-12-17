@@ -278,20 +278,20 @@ if (isset($conn)) {
                                     <li><a class="dropdown-item" href="change_password.php"><i class="fas fa-lock me-2"></i>Đổi mật khẩu</a></li>
                                 </ul>
 
-                                <!-- Shortcuts -->
+                                <!-- Shortcuts
                                 <div class="dropdown-header fw-bold text-muted small py-2 px-4 mt-2">LIÊN KẾT NHANH</div>
                                 <ul class="list-unstyled mb-0 px-2">
                                     <li><a class="dropdown-item" href="cart.php"><i class="fas fa-shopping-bag me-2"></i>Xem giỏ hàng</a></li>
                                     <li><a class="dropdown-item" href="best_sellers.php"><i class="fas fa-star me-2"></i>Hàng bán chạy</a></li>
                                     <li><a class="dropdown-item" href="index.php#hang-moi-ve"><i class="fas fa-package me-2"></i>Hàng mới về</a></li>
-                                </ul>
+                                </ul> -->
 
-                                <!-- Support -->
+                                <!-- Support
                                 <div class="dropdown-header fw-bold text-muted small py-2 px-4 mt-2">HỖ TRỢ</div>
                                 <ul class="list-unstyled mb-0 px-2">
                                     <li><a class="dropdown-item" href="mailto:support@novawear.vn"><i class="fas fa-envelope me-2"></i>Liên hệ hỗ trợ</a></li>
                                     <li><a class="dropdown-item" href="#"><i class="fas fa-question-circle me-2"></i>Câu hỏi thường gặp</a></li>
-                                </ul>
+                                </ul> -->
 
                                 <!-- Divider & Logout -->
                                 <hr class="dropdown-divider my-2">

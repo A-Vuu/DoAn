@@ -168,28 +168,6 @@ $jsonVariants = json_encode($variants);
 $jsonColorMap = json_encode($colorImageMap);
 ?>
 
-<!-- <style>
-    .rating {
-        display: flex;
-        flex-direction: row-reverse;
-        justify-content: start;
-    }
-    .rating input { display: none; }
-    .rating label {
-        font-size: 2rem;
-        color: #ddd;
-        cursor: pointer;
-        padding: 0 5px;
-    }
-    .rating input:checked ~ label,
-    .rating label:hover,
-    .rating label:hover ~ label {
-        color: #f1c40f; 
-    }
-    .star-display { color: #f1c40f; }
-    .review-date { font-size: 0.85rem; color: #999; }
-    .admin-reply { background-color: #f8f9fa; border-left: 3px solid #0d6efd; }
-</style> -->
 
 <div class="container py-5">
     <div class="row g-5">
@@ -265,7 +243,7 @@ $jsonColorMap = json_encode($colorImageMap);
 
                 <div class="d-flex align-items-center mb-4 mt-4">
                     <label class="fw-bold me-3">Số lượng:</label>
-                    <div class="input-group" style="width: 120px;">
+                    <div class="input-group" style="width: 130px;">
                         <button class="btn btn-outline-secondary" type="button" onclick="changeQty(-1)">-</button>
                         <input type="number" name="quantity" id="qtyInput" class="form-control text-center" value="1" min="1" max="1" readonly>
                         <button class="btn btn-outline-secondary" type="button" onclick="changeQty(1)">+</button>

@@ -17,8 +17,8 @@ $successMsg = $_SESSION['order_success'] ?? '';
 unset($_SESSION['order_success']);
 
 // Lấy filter status từ GET parameter
-$filterStatus = isset($_GET['status']) ? trim($_GET['status']) : 'all';
-$validStatuses = ['all', 'ChoXacNhan', 'DaXacNhan', 'DangGiao', 'HoanThanh', 'DaHuy'];
+$filterStatus = isset($_GET['status']) ? trim($_GET['status']) : 'ChoXacNhan';
+$validStatuses = ['ChoXacNhan', 'DaXacNhan', 'DangGiao', 'HoanThanh', 'DaHuy','all'];
 if (!in_array($filterStatus, $validStatuses)) {
     $filterStatus = 'all';
 }
@@ -80,9 +80,6 @@ require_once __DIR__ . '/includes/header.php';
     <div class="card shadow-sm mb-4">
         <div class="card-body p-3">
             <div class="d-flex flex-wrap gap-2">
-                <a href="orders.php?status=all" class="btn btn-sm <?php echo $filterStatus === 'all' ? 'btn-dark' : 'btn-outline-dark'; ?>">
-                    <i class="fas fa-list me-1"></i>Tất cả đơn
-                </a>
                 <a href="orders.php?status=ChoXacNhan" class="btn btn-sm <?php echo $filterStatus === 'ChoXacNhan' ? 'btn-warning' : 'btn-outline-warning'; ?>">
                     <i class="fas fa-clock me-1"></i>Chờ xác nhận
                 </a>
@@ -97,6 +94,9 @@ require_once __DIR__ . '/includes/header.php';
                 </a>
                 <a href="orders.php?status=DaHuy" class="btn btn-sm <?php echo $filterStatus === 'DaHuy' ? 'btn-danger' : 'btn-outline-danger'; ?>">
                     <i class="fas fa-times me-1"></i>Đã hủy
+                </a>
+                <a href="orders.php?status=all" class="btn btn-sm <?php echo $filterStatus === 'all' ? 'btn-dark' : 'btn-outline-dark'; ?>">
+                    <i class="fas fa-list me-1"></i>Tất cả đơn
                 </a>
             </div>
         </div>
