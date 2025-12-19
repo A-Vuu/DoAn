@@ -156,18 +156,19 @@ if (isset($conn)) {
 </head>
 <body>
 
-    <nav class="navbar navbar-expand-lg navbar-light bg-white sticky-top py-3 shadow-sm">
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top py-3 shadow-sm">
         <div class="container-fluid px-4 px-lg-5">
             
             <a class="navbar-brand fw-bolder fst-italic fs-3 me-5" href="index.php" style="letter-spacing: -1px;">
                 NOVAWEAR
             </a>
 
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
 
-            <div class="collapse navbar-collapse" id="navbarNav">
+
+            <div class="collapse navbar-collapse" id="mainNav">
                 
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0 fw-bold text-uppercase" style="font-size: 0.9rem;">
                     <li class="nav-item"><a class="nav-link" href="index.php">Trang Chủ</a></li>
@@ -209,7 +210,8 @@ if (isset($conn)) {
                     <li class="nav-item"><a class="nav-link" href="best_sellers.php">Hàng Bán Chạy</a></li>
                 </ul>
 
-                <div class="d-flex align-items-center gap-3 ms-auto">
+                <div class="d-flex align-items-center gap-3 ms-auto nav-icons-right">
+
 
                     <div class="dropdown">
                         <a class="text-dark fs-5 nav-icon dropdown-toggle" href="#" id="searchMenu" role="button" data-bs-toggle="dropdown" aria-expanded="false">
