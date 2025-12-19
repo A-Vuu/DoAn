@@ -1,6 +1,9 @@
 <?php
 session_start();
 require_once '../../config.php';
+require_once '../helpers/log_activity.php';
+
+
 if (!isset($_SESSION['admin_login'])) {
     header("Location: ../login.php");
     exit();
@@ -130,17 +133,16 @@ if (isset($_POST['update_status'])) {
             // Ghi log
             $adminId = $_SESSION['admin_id'] ?? null;
             $ip = $_SERVER['REMOTE_ADDR'] ?? '';
-            if ($stmtLog = $conn->prepare('INSERT INTO lichsuhoatdong (IdNguoiDung, IdAdmin, LoaiNguoiThucHien, HanhDong, BangDuLieu, IdBanGhi, NoiDung, DiaChiIP) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')) {
-                $nullUser = null;
-                $actor = 'admin';
-                $action = 'UpdateStatus';
-                $table = 'donhang';
-                $content = 'Chuyển trạng thái sang ' . $newStatus . ($adminNote ? (' | Ghi chú: ' . $adminNote) : '');
-                $stmtLog->bind_param('iisssiss', $nullUser, $adminId, $actor, $action, $table, $orderId, $content, $ip);
-                $stmtLog->execute();
-                $stmtLog->close();
-            }
-        }
+            ghiLichSuAdmin(
+                $conn,
+                "Cập nhật trạng thái đơn hàng",
+                "DonHang",
+                $orderId,
+                "Chuyển trạng thái sang $newStatus" . 
+                ($adminNote ? " | Ghi chú: $adminNote" : "")
+            );
+
+        }   
     }
 }
 $currentStatus = $statusMap[$order['TrangThaiDonHang']] ?? ['label' => 'N/A', 'class' => 'secondary', 'icon' => 'question'];

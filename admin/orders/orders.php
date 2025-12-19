@@ -1,6 +1,9 @@
 <?php
 session_start();
 require_once '../../config.php';
+require_once '../helpers/log_activity.php';
+
+
 if (!isset($_SESSION['admin_login'])) {
     header("Location: ../login.php");
     exit();
@@ -103,18 +106,14 @@ if (isset($_POST['quick_update_status'])) {
     }
 
     // Ghi log vào lichsuhoatdong
-    $adminId = $_SESSION['admin_id'] ?? null;
-    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
-    if ($stmtLog = $conn->prepare('INSERT INTO lichsuhoatdong (IdNguoiDung, IdAdmin, LoaiNguoiThucHien, HanhDong, BangDuLieu, IdBanGhi, NoiDung, DiaChiIP) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')) {
-        $nullUser = null;
-        $actor = 'admin';
-        $action = 'UpdateStatus';
-        $table = 'donhang';
-        $content = 'Chuyển trạng thái sang ' . $newStatus;
-        $stmtLog->bind_param('iisssiss', $nullUser, $adminId, $actor, $action, $table, $orderId, $content, $ip);
-        $stmtLog->execute();
-        $stmtLog->close();
-    }
+   ghiLichSuAdmin(
+    $conn,
+    "Cập nhật trạng thái đơn hàng",
+    "DonHang",
+    $orderId,
+    "Chuyển trạng thái đơn hàng sang: $newStatus"
+);
+
 
     $_SESSION['admin_msg'] = "Đã cập nhật trạng thái đơn hàng #$orderId";
     header("Location: orders.php" . ($_GET ? '?' . http_build_query($_GET) : ''));
@@ -297,16 +296,17 @@ unset($_SESSION['admin_msg']);
     <div class="sidebar">
         <h4 class="text-center mb-4">NovaWear Admin</h4>
         <div class="px-3 mb-3 text-white">
-            <i class="fas fa-user-shield"></i> Xin chào, <strong><?php echo $_SESSION['admin_name']; ?></strong>
+             Xin chào, <strong><?php echo $_SESSION['admin_name']; ?></strong>
         </div>
         <hr style="border-color: #4f5962;">
         <nav>
-            <a href="../category.php">Danh mục sản phẩm</a>
-            <a href="../product/product.php">Quản lý sản phẩm</a>
-            <a href="orders.php" class="active">Quản lý đơn hàng</a>
+            <a href="../category.php" >Danh mục sản phẩm</a>
+            <a href="../product/product.php" >Quản lý sản phẩm</a>
+            <a href="../orders/orders.php" class="active">Quản lý đơn hàng</a>
             <a href="../news/news.php">Tin tức</a>
             <a href="../banner/banner.php">Quảng cáo</a>
             <a href="../danhgia&chan/danhgia_chan.php">Đánh giá & chặn</a>
+            <a href="../lich_su_hoat_dong.php">Lịch sử hoạt động</a>
             <a href="../logout.php">Đăng xuất</a>
         </nav>
     </div>

@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once '../../config.php';
+require_once '../helpers/log_activity.php';
+
 
 // Kiểm tra quyền Admin
 if (!isset($_SESSION['admin_login'])) {
@@ -13,54 +15,113 @@ $msg = "";
 // --- 1. XỬ LÝ ACTION: XÓA ĐÁNH GIÁ LẺ ---
 if (isset($_POST['delete_review'])) {
     $reviewId = intval($_POST['review_id']);
+
+    // Lấy thông tin trước khi xóa
+    $rs = mysqli_query($conn, "SELECT NoiDung FROM danhgiasanpham WHERE Id = $reviewId");
+    $noiDung = mysqli_fetch_assoc($rs)['NoiDung'] ?? '';
+
     $sqlDel = "DELETE FROM danhgiasanpham WHERE Id = $reviewId";
     if (mysqli_query($conn, $sqlDel)) {
+
+        ghiLichSuAdmin(
+            $conn,
+            "Xóa đánh giá",
+            "DanhGiaSanPham",
+            $reviewId,
+            "Xóa đánh giá ID $reviewId: " . mb_substr($noiDung, 0, 50)
+        );
+
         $msg = "<div class='alert alert-success mb-3'>Đã xóa đánh giá #$reviewId thành công!</div>";
     } else {
         $msg = "<div class='alert alert-danger mb-3'>Lỗi: " . mysqli_error($conn) . "</div>";
     }
 }
 
-// --- [UPDATED] 2. XỬ LÝ ACTION: CHẶN / BỎ CHẶN USER & XÓA ĐÁNH GIÁ ---
+
+// --- 2. XỬ LÝ ACTION: CHẶN / BỎ CHẶN USER & XÓA ĐÁNH GIÁ ---
 if (isset($_POST['toggle_block_user'])) {
+
     $userId = intval($_POST['user_id']);
     $currentStatus = intval($_POST['current_status']);
-    
-    // Logic: Nếu đang 1 (Active) -> 0 (Block). Ngược lại 0 -> 1.
+
+    // 1 = active, 0 = blocked
     $newStatus = ($currentStatus == 1) ? 0 : 1;
-    
-    // Cập nhật trạng thái User
+
     $sqlBlock = "UPDATE nguoidung SET TrangThai = $newStatus WHERE Id = $userId";
-    
+
     if (mysqli_query($conn, $sqlBlock)) {
+
+        // ================== CHẶN USER ==================
         if ($newStatus == 0) {
-            // [NEW] NẾU LÀ HÀNH ĐỘNG CHẶN -> XÓA TOÀN BỘ ĐÁNH GIÁ CỦA USER NÀY
+
+            // Xóa toàn bộ đánh giá của user
             $sqlDelAll = "DELETE FROM danhgiasanpham WHERE IdNguoiDung = $userId";
-            mysqli_query($conn, $sqlDelAll); // Thực thi xóa
-            
-            $msg = "<div class='alert alert-success mb-3'>Đã CHẶN người dùng (ID: $userId) và XÓA TOÀN BỘ đánh giá của họ!</div>";
-        } else {
-            $msg = "<div class='alert alert-success mb-3'>Đã BỎ CHẶN người dùng (ID: $userId) thành công!</div>";
+            mysqli_query($conn, $sqlDelAll);
+
+            ghiLichSuAdmin(
+                $conn,
+                "Chặn người dùng",
+                "NguoiDung",
+                $userId,
+                "Chặn user ID $userId và xóa toàn bộ đánh giá"
+            );
+
+            $msg = "<div class='alert alert-success mb-3'>
+                        Đã CHẶN người dùng (ID: $userId) và XÓA TOÀN BỘ đánh giá!
+                    </div>";
+
         }
+        // ================== BỎ CHẶN ==================
+        else {
+
+            ghiLichSuAdmin(
+                $conn,
+                "Bỏ chặn người dùng",
+                "NguoiDung",
+                $userId,
+                "Bỏ chặn user ID $userId"
+            );
+
+            $msg = "<div class='alert alert-success mb-3'>
+                        Đã BỎ CHẶN người dùng (ID: $userId)!
+                    </div>";
+        }
+
     } else {
-        $msg = "<div class='alert alert-danger mb-3'>Lỗi cập nhật trạng thái người dùng.</div>";
+        $msg = "<div class='alert alert-danger mb-3'>
+                    Lỗi cập nhật trạng thái người dùng!
+                </div>";
     }
 }
+
+
 
 // --- 3. XỬ LÝ ACTION: TRẢ LỜI ĐÁNH GIÁ ---
 if (isset($_POST['reply_review'])) {
     $reviewId = intval($_POST['review_id']);
     $replyContent = mysqli_real_escape_string($conn, $_POST['reply_content']);
     $currentDate = date('Y-m-d H:i:s');
-    
-    $sqlReply = "UPDATE danhgiasanpham SET PhanHoiQuanTri = '$replyContent', NgayPhanHoi = '$currentDate' WHERE Id = $reviewId";
-    
+
+    $sqlReply = "UPDATE danhgiasanpham 
+                 SET PhanHoiQuanTri = '$replyContent', NgayPhanHoi = '$currentDate'
+                 WHERE Id = $reviewId";
+
     if (mysqli_query($conn, $sqlReply)) {
+
+        ghiLichSuAdmin(
+            $conn,
+            "Phản hồi đánh giá",
+            "DanhGiaSanPham",
+            $reviewId,
+            "Admin phản hồi đánh giá ID $reviewId"
+        );
+
         $msg = "<div class='alert alert-success mb-3'>Đã gửi phản hồi cho đánh giá #$reviewId!</div>";
     } else {
-        $msg = "<div class='alert alert-danger mb-3'>Lỗi gửi phản hồi: " . mysqli_error($conn) . "</div>";
+        $msg = "<div class='alert alert-danger mb-3'>Lỗi gửi phản hồi.</div>";
     }
 }
+
 
 // --- 4. LỌC VÀ TÌM KIẾM DỮ LIỆU ---
 
@@ -139,6 +200,7 @@ if (!empty($searchUser) || $filterUserStatus !== 'all') {
             <a href="../news/news.php">Tin tức</a>
             <a href="../banner/banner.php">Quảng cáo</a>
             <a href="danhgia_chan.php" class="active">Đánh giá & chặn</a>
+            <a href="../lich_su_hoat_dong.php">Lịch sử hoạt động</a>
             <a href="../logout.php">Đăng xuất</a>
         </nav>
     </div>

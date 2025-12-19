@@ -10,12 +10,28 @@ if (isset($_POST['login'])) {
     $result = mysqli_query($conn, $sql);
     
     if (mysqli_num_rows($result) > 0) {
-        $row = mysqli_fetch_assoc($result);
-        $_SESSION['admin_login'] = true;
-        $_SESSION['admin_id'] = $row['Id'];
-        $_SESSION['admin_name'] = $row['HoTen'];
-        header("Location: product/product.php"); // Chuyển thẳng vào trang sản phẩm
-    } else {
+    $row = mysqli_fetch_assoc($result);
+
+    $_SESSION['admin_login'] = true;
+    $_SESSION['admin_id'] = $row['Id'];
+    $_SESSION['admin_name'] = $row['HoTen'];
+
+    // ===== GHI LỊCH SỬ ĐĂNG NHẬP =====
+    $adminId = $row['Id'];
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+
+    $sqlLog = "INSERT INTO lichsuhoatdong
+        (IdNguoiDung, IdAdmin, LoaiNguoiThucHien, HanhDong, BangDuLieu, IdBanGhi, NoiDung, DiaChiIP)
+        VALUES
+        (NULL, '$adminId', 'admin', 'Login', 'Admin', '$adminId', 'Admin đăng nhập hệ thống', '$ip')";
+
+    mysqli_query($conn, $sqlLog);
+    // =================================
+
+    header("Location: product/product.php");
+    exit();
+}
+ else {
         $error = "Sai thông tin đăng nhập!";
     }
 }
@@ -44,6 +60,7 @@ if (isset($_POST['login'])) {
                 <input type="password" name="password" class="form-control" required>
             </div>
             <button type="submit" name="login" class="btn btn-primary w-100">Đăng nhập</button>
+            <a href="register.php">Đăng ký</a>
         </form>
     </div>
 </body>

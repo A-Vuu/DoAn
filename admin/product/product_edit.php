@@ -2,6 +2,31 @@
 session_start();
 require_once '../../config.php';
 
+function log_product_action($conn, $action, $productId, $content) {
+    $adminId = $_SESSION['admin_id'] ?? null;
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+
+    if ($stmt = $conn->prepare(
+        "INSERT INTO lichsuhoatdong
+        (IdNguoiDung, IdAdmin, LoaiNguoiThucHien, HanhDong, BangDuLieu, IdBanGhi, NoiDung, DiaChiIP)
+        VALUES (?, ?, 'admin', ?, 'SanPham', ?, ?, ?)"
+    )) {
+        $nullUser = null;
+        $stmt->bind_param(
+            'ississ',
+            $nullUser,
+            $adminId,
+            $action,
+            $productId,
+            $content,
+            $ip
+        );
+        $stmt->execute();
+        $stmt->close();
+    }
+}
+
+
 // Kiểm tra đăng nhập
 if (!isset($_SESSION['admin_login'])) {
     header("Location: ../login.php");
@@ -12,6 +37,15 @@ $id = intval($_GET['id']); // Lấy ID sản phẩm cần sửa (bảo mật th�
 
 // --- 1. XỬ LÝ XÓA BIẾN THỂ (ĐÃ NÂNG CẤP XÓA ẢNH) ---
 if (isset($_GET['del_variant'])) {
+
+    log_product_action(
+    $conn,
+    'DeleteVariant',
+    $id,
+    "Xóa biến thể ID: $idVar"
+);
+
+
     $idVar = intval($_GET['del_variant']);
     
     // Lấy tên ảnh cũ để xóa khỏi thư mục uploads (dọn dẹp rác)
@@ -32,10 +66,19 @@ if (isset($_GET['del_variant'])) {
 
 // --- 2. XỬ LÝ THÊM BIẾN THỂ MỚI (ĐÃ THÊM UPLOAD ẢNH) ---
 if (isset($_POST['add_variant'])) {
+    
+
     $mau = intval($_POST['new_color']);
     $size = intval($_POST['new_size']);
     $sl = (int)$_POST['new_qty'];
     $skuParent = $_POST['sku_parent']; 
+
+    log_product_action(
+        $conn,
+        'AddVariant',
+        $id,
+        "Thêm biến thể (Màu ID: $mau, Size ID: $size, SL: $sl)"
+    );
     
     // Kiểm tra trùng
     $check = mysqli_query($conn, "SELECT Id FROM ChiTietSanPham WHERE IdSanPham=$id AND IdMauSac=$mau AND IdKichThuoc=$size");
@@ -75,6 +118,14 @@ if (isset($_POST['add_variant'])) {
 
 // --- 3. XỬ LÝ CẬP NHẬT SỐ LƯỢNG BIẾN THỂ ---
 if (isset($_POST['update_quantities'])) {
+log_product_action(
+    $conn,
+    'UpdateStock',
+    $id,
+    'Cập nhật số lượng tồn kho từ biến thể'
+);
+
+
     if (isset($_POST['qty'])) {
         foreach ($_POST['qty'] as $idVar => $soLuong) {
             $sl = (int)$soLuong;
@@ -122,7 +173,13 @@ if (isset($_POST['update_product'])) {
 
     try {
         if (mysqli_query($conn, $sqlUpdate)) {
-            
+            log_product_action(
+                $conn,
+                'Update',
+                $id,
+                'Cập nhật thông tin sản phẩm'
+            );
+
             // Xử lý tồn kho tổng (Nếu KHÔNG có biến thể thì cập nhật theo ô nhập)
             $checkVar = mysqli_query($conn, "SELECT Id FROM ChiTietSanPham WHERE IdSanPham=$id LIMIT 1");
             if (mysqli_num_rows($checkVar) == 0) {

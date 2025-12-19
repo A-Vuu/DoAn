@@ -112,7 +112,17 @@ require_once __DIR__ . '/includes/header.php';
                 <?php
                     $orderId = intval($o['Id']);
                     $items = [];
-                    $stmtItems = $conn->prepare('SELECT TenSanPham, SoLuong, DonGia, MauSac, KichThuoc FROM chitietdonhang WHERE IdDonHang = ?');
+                    $stmtItems = $conn->prepare('SELECT ctdh.TenSanPham,
+                                                        ctdh.SoLuong,
+                                                        ctdh.DonGia,
+                                                        ctdh.MauSac,
+                                                        ctdh.KichThuoc,
+                                                        cts.AnhBienThe
+                                                    FROM chitietdonhang ctdh
+                                                    LEFT JOIN chitietsanpham cts 
+                                                        ON ctdh.IdChiTietSanPham = cts.Id
+                                                    WHERE ctdh.IdDonHang = ?
+                                                    ');
                     if ($stmtItems) {
                         $stmtItems->bind_param('i', $orderId);
                         $stmtItems->execute();
@@ -139,7 +149,11 @@ require_once __DIR__ . '/includes/header.php';
                             <?php foreach ($items as $it): ?>
                                 <div class="d-flex align-items-center mb-3">
                                     <div class="border rounded overflow-hidden me-3" style="width:60px; height:60px;">
-                                        <img src="uploads/<?php echo htmlspecialchars($it['Anh'] ?? 'default.png'); ?>" style="width:100%; height:100%; object-fit:cover;">
+                                        <img 
+                                            src="uploads/<?php echo htmlspecialchars($it['AnhBienThe'] ?? 'default.png'); ?>"
+                                            style="width:100%; height:100%; object-fit:cover;"
+                                            onerror="this.src='uploads/default.png'">
+
                                     </div>
                                     <div class="flex-grow-1">
                                         <div class="fw-semibold small mb-1"><?php echo htmlspecialchars($it['TenSanPham']); ?></div>

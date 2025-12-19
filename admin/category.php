@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config.php';
+require_once 'helpers/log_activity.php';
 
 // 1. Kiểm tra đăng nhập
 if (!isset($_SESSION['admin_login'])) {
@@ -22,21 +23,44 @@ if (isset($_POST['add_category'])) {
             VALUES ('$ten', $cha, '$thutu', '$mota')";
    
     if (mysqli_query($conn, $sql)) {
-        $msg = "Thêm danh mục thành công!";
-    } else {
-        $error = "Lỗi: " . mysqli_error($conn);
-    }
+
+    $idMoi = mysqli_insert_id($conn);
+
+    ghiLichSuAdmin(
+        $conn,
+        "Thêm danh mục",
+        "DanhMucSanPham",
+        $idMoi,
+        "Thêm danh mục: $ten"
+    );
+
+    $msg = "Thêm danh mục thành công!";
+}
+
 }
 
 // 3. Xử lý xóa (Giữ nguyên)
 if (isset($_GET['delete'])) {
-    $id = $_GET['delete'];
+    $id = (int)$_GET['delete'];
+
+    // Lấy tên trước khi xóa
+    $rs = mysqli_query($conn, "SELECT TenDanhMuc FROM DanhMucSanPham WHERE Id = $id");
+    $ten = mysqli_fetch_assoc($rs)['TenDanhMuc'] ?? '';
+
     mysqli_query($conn, "DELETE FROM DanhMucSanPham WHERE Id = $id");
-    
-    // Xóa xong thì quay lại trang danh sách (giữ nguyên trạng thái parent nếu có thì tốt hơn, nhưng để đơn giản ta về trang gốc)
+
+    ghiLichSuAdmin(
+        $conn,
+        "Xóa danh mục",
+        "DanhMucSanPham",
+        $id,
+        "Xóa danh mục: $ten"
+    );
+
     header("Location: category.php");
     exit();
 }
+
 
 // =================================================================
 // 4. Lấy dữ liệu (PHẦN SỬA ĐỔI QUAN TRỌNG)
@@ -94,6 +118,7 @@ $catDropdown = mysqli_query($conn, "SELECT * FROM DanhMucSanPham WHERE IdDanhMuc
             <a href="news/news.php">Tin tức</a>
             <a href="banner/banner.php">Quảng cáo</a>
             <a href="danhgia&chan/danhgia_chan.php">Đánh giá & chặn</a>
+            <a href="lich_su_hoat_dong.php">Lịch sử hoạt động</a>
             <a href="logout.php">Đăng xuất</a>
         </nav>
     </div>

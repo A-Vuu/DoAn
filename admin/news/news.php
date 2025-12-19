@@ -2,6 +2,8 @@
 session_start();
 // Đảm bảo đường dẫn file config đúng với cấu trúc thư mục của bạn
 require_once '../../config.php'; 
+require_once '../helpers/log_activity.php';
+
 
 if (!isset($_SESSION['admin_login'])) {
     header("Location: ../login.php");
@@ -40,9 +42,19 @@ if (isset($_POST['save_news'])) {
         $sqlAnh = ($hinhAnh != "") ? ", AnhDaiDien='$hinhAnh'" : "";
         $sql = "UPDATE TinTuc SET TieuDe='$tieuDe', TomTat='$tomTat', NoiDung='$noiDung', IdDanhMuc='$danhMuc' $sqlAnh WHERE Id=$id";
         
-        if(mysqli_query($conn, $sql)){
+        if (mysqli_query($conn, $sql)) {
+
+            ghiLichSuAdmin(
+                $conn,
+                "Sửa tin tức",
+                "TinTuc",
+                $id,
+                "Sửa bài viết: $tieuDe"
+            );
+
             echo "<script>alert('Cập nhật bài viết thành công!'); window.location='news.php';</script>";
-        } else {
+        }
+        else {
             echo "<script>alert('Lỗi: " . mysqli_error($conn) . "');</script>";
         }
     } else {
@@ -50,21 +62,46 @@ if (isset($_POST['save_news'])) {
         $sql = "INSERT INTO TinTuc (TieuDe, TomTat, NoiDung, IdDanhMuc, AnhDaiDien, TacGia) 
                 VALUES ('$tieuDe', '$tomTat', '$noiDung', '$danhMuc', '$hinhAnh', '$tacGia')";
         
-        if(mysqli_query($conn, $sql)){
+        if (mysqli_query($conn, $sql)) {
+
+            $idMoi = mysqli_insert_id($conn);
+            ghiLichSuAdmin(
+                $conn,
+                "Thêm tin tức",
+                "TinTuc",
+                $idMoi,
+                "Thêm bài viết: $tieuDe"
+            );
+
             echo "<script>alert('Đăng bài thành công!'); window.location='news.php';</script>";
-        } else {
-            echo "<script>alert('Lỗi: " . mysqli_error($conn) . "');</script>";
         }
+        else {
+                echo "<script>alert('Lỗi: " . mysqli_error($conn) . "');</script>";
+            }
     }
 }
 
 // --- XỬ LÝ XÓA ---
 if (isset($_GET['delete'])) {
-    $id = intval($_GET['delete']); // Ép kiểu số để bảo mật
-    // Có thể xóa thêm file ảnh cũ nếu cần (nâng cao)
+    $id = intval($_GET['delete']);
+
+    // Lấy tiêu đề trước khi xóa
+    $rs = mysqli_query($conn, "SELECT TieuDe FROM TinTuc WHERE Id = $id");
+    $tieuDe = mysqli_fetch_assoc($rs)['TieuDe'] ?? '';
+
     mysqli_query($conn, "DELETE FROM TinTuc WHERE Id=$id");
+
+    ghiLichSuAdmin(
+        $conn,
+        "Xóa tin tức",
+        "TinTuc",
+        $id,
+        "Xóa bài viết: $tieuDe"
+    );
+
     echo "<script>alert('Đã xóa bài viết!'); window.location='news.php';</script>";
 }
+
 
 // --- LẤY DỮ LIỆU SỬA ---
 if (isset($_GET['edit'])) {
@@ -103,6 +140,7 @@ $catList = mysqli_query($conn, "SELECT * FROM DanhMucTinTuc");
             <a href="news.php" class="active">Tin tức</a>
             <a href="../banner/banner.php">Quảng cáo</a>
             <a href="../danhgia&chan/danhgia_chan.php">Đánh giá & chặn</a>
+            <a href="../lich_su_hoat_dong.php">Lịch sử hoạt động</a>
             <a href="../logout.php">Đăng xuất</a>
         </nav>
     </div>

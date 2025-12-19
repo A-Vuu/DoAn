@@ -1,6 +1,32 @@
 <?php
 session_start();
 require_once '../../config.php';
+
+function log_product_action($conn, $action, $productId, $content) {
+    $adminId = $_SESSION['admin_id'] ?? null;
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+
+    if ($stmt = $conn->prepare(
+        "INSERT INTO lichsuhoatdong
+        (IdNguoiDung, IdAdmin, LoaiNguoiThucHien, HanhDong, BangDuLieu, IdBanGhi, NoiDung, DiaChiIP)
+        VALUES (?, ?, 'admin', ?, 'SanPham', ?, ?, ?)"
+    )) {
+        $nullUser = null;
+        $stmt->bind_param(
+            'ississ',
+            $nullUser,
+            $adminId,
+            $action,
+            $productId,
+            $content,
+            $ip
+        );
+        $stmt->execute();
+        $stmt->close();
+    }
+}
+
+
 if (!isset($_SESSION['admin_login'])) header("Location: login.php");
 
 // Lấy danh sách sản phẩm + Tên danh mục
@@ -31,6 +57,7 @@ $products = mysqli_query($conn, $sql);
             <a href="../news/news.php" >Tin tức</a>
             <a href="../banner/banner.php">Quảng cáo</a>
             <a href="../danhgia&chan/danhgia_chan.php">Đánh giá & chặn</a>
+            <a href="../lich_su_hoat_dong.php">Lịch sử hoạt động</a>
             <a href="../logout.php">Đăng xuất</a>
         </nav>
     </div>

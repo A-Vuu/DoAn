@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once '../../config.php';
+require_once '../helpers/log_activity.php';
+
 
 if (!isset($_SESSION['admin_login'])) {
     header("Location: ../login.php");
@@ -12,11 +14,11 @@ $dulieu_sua = null;
 // --- XỬ LÝ LƯU BANNER ---
 if (isset($_POST['save_banner'])) {
     $tieuDe = $_POST['tieude'];
-    $viTri = $_POST['vitri']; // 'TrangChu', 'Sidebar'...
+    $viTri = $_POST['vitri'];
     $lienKet = $_POST['lienket'];
     $thuTu = $_POST['thutu'];
 
-    // Upload Ảnh Banner
+    // Upload ảnh
     $hinhAnh = "";
     if (isset($_FILES['anh']) && $_FILES['anh']['name'] != "") {
         $target_dir = "../../uploads/";
@@ -25,27 +27,72 @@ if (isset($_POST['save_banner'])) {
         move_uploaded_file($_FILES["anh"]["tmp_name"], $target_dir . $hinhAnh);
     }
 
+    // ================== SỬA ==================
     if (isset($_POST['id_sua']) && !empty($_POST['id_sua'])) {
-        // Cập nhật
-        $id = $_POST['id_sua'];
+        $id = (int)$_POST['id_sua'];
+
         $sqlAnh = ($hinhAnh != "") ? ", HinhAnh='$hinhAnh'" : "";
-        $sql = "UPDATE Banner SET TieuDe='$tieuDe', ViTri='$viTri', LienKet='$lienKet', ThuTu='$thuTu' $sqlAnh WHERE Id=$id";
+        $sql = "UPDATE Banner 
+                SET TieuDe='$tieuDe', ViTri='$viTri', LienKet='$lienKet', ThuTu='$thuTu' $sqlAnh
+                WHERE Id=$id";
         mysqli_query($conn, $sql);
-    } else {
-        // Thêm mới
+
+        // 👉 GHI LỊCH SỬ
+        ghiLichSuAdmin(
+            $conn,
+            "Sửa banner",
+            "Banner",
+            $id,
+            "Sửa banner: $tieuDe"
+        );
+
+    } 
+    // ================== THÊM ==================
+    else {
         $sql = "INSERT INTO Banner (TieuDe, HinhAnh, ViTri, LienKet, ThuTu, LoaiLienKet) 
                 VALUES ('$tieuDe', '$hinhAnh', '$viTri', '$lienKet', '$thuTu', 'URL')";
         mysqli_query($conn, $sql);
+
+        $idMoi = mysqli_insert_id($conn);
+
+        // 👉 GHI LỊCH SỬ
+        ghiLichSuAdmin(
+            $conn,
+            "Thêm banner",
+            "Banner",
+            $idMoi,
+            "Thêm banner: $tieuDe"
+        );
     }
+
     header("Location: banner.php");
+    exit();
 }
+
 
 // --- XÓA BANNER ---
 if (isset($_GET['delete'])) {
-    $id = $_GET['delete'];
+    $id = (int)$_GET['delete'];
+
+    // Lấy tiêu đề trước khi xóa
+    $rs = mysqli_query($conn, "SELECT TieuDe FROM Banner WHERE Id=$id");
+    $tieuDe = mysqli_fetch_assoc($rs)['TieuDe'] ?? '';
+
     mysqli_query($conn, "DELETE FROM Banner WHERE Id=$id");
+
+    // 👉 GHI LỊCH SỬ
+    ghiLichSuAdmin(
+        $conn,
+        "Xóa banner",
+        "Banner",
+        $id,
+        "Xóa banner: $tieuDe"
+    );
+
     header("Location: banner.php");
+    exit();
 }
+
 
 // --- LẤY DỮ LIỆU SỬA ---
 if (isset($_GET['edit'])) {
@@ -81,6 +128,7 @@ $banners = mysqli_query($conn, "SELECT * FROM Banner ORDER BY ViTri, ThuTu");
             <a href="../news/news.php">Tin tức</a>
             <a href="banner.php" class="active">Quảng cáo</a>
             <a href="../danhgia&chan/danhgia_chan.php">Đánh giá & chặn</a>
+            <a href="../lich_su_hoat_dong.php">Lịch sử hoạt động</a>
             <a href="../logout.php">Đăng xuất</a>
         </nav>
     </div>

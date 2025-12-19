@@ -1,13 +1,25 @@
 <?php
-session_start(); // 1. Khởi động session để xác định đang đăng nhập là ai
+session_start();
+require_once '../config.php';
 
-// 2. Xóa tất cả các biến session
-session_unset(); 
+// ===== GHI LỊCH SỬ ĐĂNG XUẤT =====
+if (isset($_SESSION['admin_id'])) {
+    $adminId = $_SESSION['admin_id'];
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
 
-// 3. Hủy hoàn toàn session trên server
-session_destroy(); 
+    $sqlLog = "INSERT INTO lichsuhoatdong
+        (IdNguoiDung, IdAdmin, LoaiNguoiThucHien, HanhDong, BangDuLieu, IdBanGhi, NoiDung, DiaChiIP)
+        VALUES
+        (NULL, '$adminId', 'admin', 'Logout', 'Admin', '$adminId', 'Admin đăng xuất hệ thống', '$ip')";
 
-// 4. Quan trọng nhất: Chuyển hướng về lại trang đăng nhập
+    mysqli_query($conn, $sqlLog);
+}
+// =================================
+
+session_unset();
+session_destroy();
+
 header("Location: login.php");
-exit(); // Ngắt luồng xử lý ngay lập tức
+exit();
+
 ?>

@@ -2,6 +2,32 @@
 session_start();
 require_once '../../config.php'; // Lùi 2 cấp để lấy config
 
+
+function log_product_action($conn, $action, $productId, $content) {
+    $adminId = $_SESSION['admin_id'] ?? null;
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+
+    if ($stmt = $conn->prepare(
+        "INSERT INTO lichsuhoatdong
+        (IdNguoiDung, IdAdmin, LoaiNguoiThucHien, HanhDong, BangDuLieu, IdBanGhi, NoiDung, DiaChiIP)
+        VALUES (?, ?, 'admin', ?, 'SanPham', ?, ?, ?)"
+    )) {
+        $nullUser = null;
+        $stmt->bind_param(
+            'ississ',
+            $nullUser,
+            $adminId,
+            $action,
+            $productId,
+            $content,
+            $ip
+        );
+        $stmt->execute();
+        $stmt->close();
+    }
+}
+
+
 // Kiểm tra đăng nhập
 if (!isset($_SESSION['admin_login'])) {
     header("Location: ../login.php");
@@ -21,6 +47,12 @@ if (isset($_GET['id'])) {
     $sql = "DELETE FROM SanPham WHERE Id = $id";
 
     if (mysqli_query($conn, $sql)) {
+        log_product_action(
+            $conn,
+            'Delete',
+            $id,
+            'Xóa sản phẩm'
+        );
         echo "<script>alert('Xóa sản phẩm thành công!'); window.location='product.php';</script>";
     } else {
         echo "<script>alert('Lỗi xóa: " . mysqli_error($conn) . "'); window.location='product.php';</script>";

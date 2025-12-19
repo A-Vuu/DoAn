@@ -1,7 +1,32 @@
 <?php
 session_start();
 require_once '../../config.php';
-// if (!isset($_SESSION['admin_login'])) header("Location: ../login.php");
+
+
+function log_product_action($conn, $action, $productId, $content) {
+    $adminId = $_SESSION['admin_id'] ?? null;
+    $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+
+    if ($stmt = $conn->prepare(
+        "INSERT INTO lichsuhoatdong
+        (IdNguoiDung, IdAdmin, LoaiNguoiThucHien, HanhDong, BangDuLieu, IdBanGhi, NoiDung, DiaChiIP)
+        VALUES (?, ?, 'admin', ?, 'SanPham', ?, ?, ?)"
+    )) {
+        $nullUser = null;
+        $stmt->bind_param(
+            'ississ',
+            $nullUser,
+            $adminId,
+            $action,
+            $productId,
+            $content,
+            $ip
+        );
+        $stmt->execute();
+        $stmt->close();
+    }
+}
+
 
 // Lấy dữ liệu cho các ô chọn
 $categories = mysqli_query($conn, "SELECT * FROM DanhMucSanPham"); 
@@ -36,6 +61,13 @@ if (isset($_POST['submit'])) {
     
     if (mysqli_query($conn, $sqlInsert)) {
         $idSPMoi = mysqli_insert_id($conn);
+        log_product_action(
+            $conn,
+            'Create',
+            $idSPMoi,
+            'Thêm sản phẩm mới: ' . $tenSP
+        );
+
 
         // 3. UPLOAD ẢNH ĐẠI DIỆN CHÍNH
         if (isset($_FILES['anh_sp']) && $_FILES['anh_sp']['name'] != "") {
