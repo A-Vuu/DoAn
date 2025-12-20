@@ -26,7 +26,7 @@ if (isset($sectionTitle) && !empty($sectionTitle)): ?>
 
             // --- LẤY MÀU SẮC & ẢNH BIẾN THỂ (Để dùng cho chấm màu) ---
             // Không còn cột AnhBienThe trong ChiTietSanPham; chỉ lấy thông tin màu
-            $sqlColors = "SELECT DISTINCT m.Id, m.TenMau, m.MaMau
+            $sqlColors = "SELECT DISTINCT m.Id, m.TenMau, m.MaMau, ct.AnhBienThe
                           FROM ChiTietSanPham ct
                           JOIN MauSac m ON ct.IdMauSac = m.Id
                           WHERE ct.IdSanPham = $pId 
@@ -134,23 +134,31 @@ if (isset($sectionTitle) && !empty($sectionTitle)): ?>
 <?php endif; ?>
 
 <script>
-// Hàm đổi ảnh chính khi click vào chấm màu (Đơn giản hóa)
+// Hàm đổi ảnh chính khi click vào chấm màu
 function changeMainImage(imgId, imgFileName, dotElement) {
     const imgElement = document.getElementById(imgId);
-    if(imgElement && imgFileName) {
-        // 1. Hiệu ứng mờ nhẹ
-        imgElement.style.opacity = 0.6;
-        setTimeout(() => {
-            imgElement.src = 'uploads/' + imgFileName;
-            imgElement.style.opacity = 1;
-        }, 150);
+    
+    if(!imgElement || !imgFileName) return;
+    
+    // Xử lý path ảnh - nếu chưa có 'uploads/' thì thêm vào
+    let imagePath = imgFileName.includes('uploads/') ? imgFileName : ('uploads/' + imgFileName);
+    
+    // 1. Hiệu ứng fade transition
+    imgElement.style.transition = 'opacity 0.3s ease-in-out';
+    imgElement.style.opacity = 0;
+    
+    setTimeout(() => {
+        imgElement.src = imagePath;
+        imgElement.style.opacity = 1;
+    }, 150);
 
-        // 2. Highlight chấm màu đang chọn
+    // 2. Highlight chấm màu đang chọn
+    if(dotElement && dotElement.parentElement) {
         let parent = dotElement.parentElement; 
-        let siblings = parent.getElementsByClassName('color-dot-wrapper');
-        for(let item of siblings) {
+        let siblings = parent.querySelectorAll('.color-dot-wrapper');
+        siblings.forEach(item => {
             item.classList.remove('active');
-        }
+        });
         dotElement.classList.add('active');
     }
 }
