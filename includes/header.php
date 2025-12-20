@@ -282,6 +282,7 @@ if (isset($conn)) {
                                 <ul class="list-unstyled mb-0 px-2">
                                     <li><a class="dropdown-item" href="profile.php"><i class="fas fa-id-card me-2"></i>Hồ sơ cá nhân</a></li>
                                     <li><a class="dropdown-item" href="orders.php"><i class="fas fa-receipt me-2"></i>Lịch sử đơn hàng</a></li>
+                                    <li><a class="dropdown-item" href="promotions.php"><i class="fas fa-ticket-alt me-2"></i>Mã khuyến mãi</a></li>
                                     <li><a class="dropdown-item" href="change_password.php"><i class="fas fa-lock me-2"></i>Đổi mật khẩu</a></li>
                                 </ul>
 

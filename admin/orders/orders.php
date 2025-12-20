@@ -304,6 +304,7 @@ unset($_SESSION['admin_msg']);
             <a href="../product/product.php" >Quản lý sản phẩm</a>
             <a href="../orders/orders.php" class="active">Quản lý đơn hàng</a>
             <a href="../news/news.php">Tin tức</a>
+            <a href="../promotion/promotion.php">Quản lý Khuyến mãi</a>
             <a href="../banner/banner.php">Quảng cáo</a>
             <a href="../danhgia&chan/danhgia_chan.php">Đánh giá & chặn</a>
             <a href="../lich_su_hoat_dong.php">Lịch sử hoạt động</a>

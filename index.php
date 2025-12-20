@@ -57,6 +57,16 @@ include 'includes/header.php';
         <span class="visually-hidden">Next</span>
     </button>
 </div>
+
+<div class="bg-light border-top border-bottom py-3">
+    <div class="container d-flex flex-column flex-md-row align-items-center justify-content-between gap-2">
+        <div>
+            <div class="fw-bold text-uppercase">Khuyến mãi đang diễn ra</div>
+            <div class="text-muted small">Xem tất cả mã giảm giá hiện hành và sao chép ngay.</div>
+        </div>
+        <a href="promotions.php" class="btn btn-dark">Xem tất cả khuyến mãi</a>
+    </div>
+</div>
 <div class="container py-5">
     <?php $isHomePage = true; ?>
 

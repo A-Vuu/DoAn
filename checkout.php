@@ -133,6 +133,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         }
         $shippingCost = 0;
         $discountAmount = 0;
+        $appliedPromoCode = trim($_POST['promo_code'] ?? '');
+        $appliedPromoId = null;
+
+        // Kiểm tra và áp dụng mã giảm giá nếu có
+        if (!empty($appliedPromoCode)) {
+            date_default_timezone_set('Asia/Ho_Chi_Minh');
+            $appliedPromoCode = strtoupper($appliedPromoCode);
+            
+            // Kiểm tra bảng claim tồn tại
+            $checkClaimTable = mysqli_query($conn, "SHOW TABLES LIKE 'MaGiamGia_NguoiDung'");
+            $claimTableExists = mysqli_num_rows($checkClaimTable) > 0;
+            
+            if ($claimTableExists) {
+                // Verify user đã claim mã
+                $promoStmt = $conn->prepare(
+                    "SELECT m.* FROM MaGiamGia m
+                     INNER JOIN MaGiamGia_NguoiDung mu ON m.Id = mu.IdMaGiamGia
+                     WHERE m.MaCode = ? AND m.HienThi = 1 AND mu.IdNguoiDung = ?
+                     AND (m.NgayBatDau IS NULL OR m.NgayBatDau <= NOW())
+                     AND (m.NgayKetThuc IS NULL OR m.NgayKetThuc >= NOW())"
+                );
+                if ($promoStmt) {
+                    $promoStmt->bind_param('si', $appliedPromoCode, $userId);
+                    $promoStmt->execute();
+                    $promoResult = $promoStmt->get_result();
+                }
+            } else {
+                // Không có bảng claim - cho phép dùng trực tiếp
+                $promoStmt = $conn->prepare(
+                    "SELECT * FROM MaGiamGia 
+                     WHERE MaCode = ? AND HienThi = 1
+                     AND (NgayBatDau IS NULL OR NgayBatDau <= NOW())
+                     AND (NgayKetThuc IS NULL OR NgayKetThuc >= NOW())"
+                );
+                if ($promoStmt) {
+                    $promoStmt->bind_param('s', $appliedPromoCode);
+                    $promoStmt->execute();
+                    $promoResult = $promoStmt->get_result();
+                }
+            }
+            
+            if ($promoStmt && $promoResult->num_rows > 0) {
+                $promo = $promoResult->fetch_assoc();
+                
+                // Kiểm tra điều kiện
+                if ($promo['SoLuongMa'] && $promo['DaSuDung'] >= $promo['SoLuongMa']) {
+                    $errors[] = 'Mã giảm giá đã hết lượt dùng';
+                } elseif ($promo['GiaTriDonHangToiThieu'] > 0 && $subtotal < $promo['GiaTriDonHangToiThieu']) {
+                    $errors[] = 'Đơn hàng phải từ ' . number_format($promo['GiaTriDonHangToiThieu']) . 'đ';
+                } else {
+                    // Tính toán giảm giá
+                    $isPercent = in_array($promo['LoaiGiam'], ['PhanTram', '%'], true);
+                    if (!$isPercent) {
+                        $discountAmount = min($promo['GiaTriGiam'], $subtotal);
+                    } else {
+                        $discountAmount = ($subtotal * $promo['GiaTriGiam']) / 100;
+                        if ($promo['GiamToiDa'] > 0) {
+                            $discountAmount = min($discountAmount, $promo['GiamToiDa']);
+                        }
+                    }
+                    $appliedPromoId = $promo['Id'];
+                }
+            } else {
+                $errors[] = $claimTableExists ? 'Mã không hợp lệ hoặc bạn chưa nhận mã này' : 'Mã giảm giá không tồn tại hoặc đã hết hạn';
+            }
+            
+            if ($promoStmt) {
+                $promoStmt->close();
+            }
+        }
+
         $grandTotal = $subtotal + $shippingCost - $discountAmount;
 
         // Kiểm tồn kho từng dòng
@@ -182,12 +253,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
 
         if (empty($errors)) {
             // Lưu đơn hàng theo schema donhang
-            $stmt = $conn->prepare("INSERT INTO donhang (MaDonHang, IdNguoiDung, TenNguoiNhan, EmailNguoiNhan, SoDienThoai, DiaChiGiaoHang, GhiChu, TongTienHang, PhiVanChuyen, GiamGia, TongThanhToan, PhuongThucThanhToan, TrangThaiThanhToan, TrangThaiDonHang) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ChuaThanhToan', 'ChoXacNhan')");
+            $stmt = $conn->prepare("INSERT INTO donhang (MaDonHang, IdNguoiDung, TenNguoiNhan, EmailNguoiNhan, SoDienThoai, DiaChiGiaoHang, GhiChu, TongTienHang, PhiVanChuyen, GiamGia, TongThanhToan, PhuongThucThanhToan, TrangThaiThanhToan, TrangThaiDonHang, MaGiamGia) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ChuaThanhToan', 'ChoXacNhan', ?)");
             if ($stmt) {
-                $stmt->bind_param('sisssssdddds', $orderCode, $userId, $name, $email, $phone, $address, $note, $subtotal, $shippingCost, $discountAmount, $grandTotal, $payment);
+                $appliedCode = $appliedPromoId ? $appliedPromoCode : null;
+                $stmt->bind_param('sisssssddddss', $orderCode, $userId, $name, $email, $phone, $address, $note, $subtotal, $shippingCost, $discountAmount, $grandTotal, $payment, $appliedCode);
                 if ($stmt->execute()) {
                     $orderId = $stmt->insert_id;
                     $stmt->close();
+
+                    // Cập nhật số lượt dùng mã giảm giá
+                    if ($appliedPromoId) {
+                        $updatePromo = $conn->prepare("UPDATE MaGiamGia SET DaSuDung = DaSuDung + 1 WHERE Id = ?");
+                        if ($updatePromo) {
+                            $updatePromo->bind_param('i', $appliedPromoId);
+                            $updatePromo->execute();
+                            $updatePromo->close();
+                        }
+                    }
 
                     // Lưu chi tiết đơn hàng (schema: chitietdonhang)
                     $stmtDetail = $conn->prepare("INSERT INTO chitietdonhang (IdDonHang, IdSanPham, IdChiTietSanPham, TenSanPham, MauSac, KichThuoc, SKU, SoLuong, DonGia, ThanhTien) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
@@ -255,6 +337,38 @@ $shippingCost = 0;
 $discountAmount = 0;
 $grandTotal = $subtotal + $shippingCost - $discountAmount;
 
+// Lấy danh sách mã khuyến mãi hiện hành
+$allPromos = [];
+date_default_timezone_set('Asia/Ho_Chi_Minh');
+$currentDate = date('Y-m-d H:i:s');
+
+// Kiểm tra bảng MaGiamGia_NguoiDung tồn tại
+$checkTable = mysqli_query($conn, "SHOW TABLES LIKE 'MaGiamGia_NguoiDung'");
+$tableExists = mysqli_num_rows($checkTable) > 0;
+
+// Nếu user đã claim mã, chỉ lấy các mã đã claim
+if (isset($_SESSION['user_id']) && $tableExists) {
+    $userId = (int)$_SESSION['user_id'];
+    $stmtPromo = $conn->prepare(
+        "SELECT m.Id, m.MaCode, m.TenChuongTrinh, m.LoaiGiam, m.GiaTriGiam, m.GiamToiDa, 
+                m.GiaTriDonHangToiThieu, m.SoLuongMa, m.DaSuDung, m.NgayBatDau, m.NgayKetThuc
+         FROM MaGiamGia m
+         INNER JOIN MaGiamGia_NguoiDung mu ON m.Id = mu.IdMaGiamGia
+         WHERE m.HienThi = 1 AND mu.IdNguoiDung = ?
+         ORDER BY m.NgayBatDau ASC, m.Id DESC"
+    );
+    if ($stmtPromo) {
+        $stmtPromo->bind_param('i', $userId);
+        if ($stmtPromo->execute()) {
+            $resultPromo = $stmtPromo->get_result();
+            while ($row = $resultPromo->fetch_assoc()) {
+                $allPromos[] = $row;
+            }
+        }
+        $stmtPromo->close();
+    }
+}
+
 $prefillName = $_POST['name'] ?? ($addressRow['TenNguoiNhan'] ?? ($user['HoTen'] ?? ($_SESSION['user_name'] ?? '')));
 $prefillEmail = $_POST['email'] ?? ($user['Email'] ?? ($_SESSION['user_email'] ?? ''));
 $prefillPhone = $_POST['phone'] ?? ($addressRow['SoDienThoai'] ?? ($user['SoDienThoai'] ?? ''));
@@ -280,9 +394,10 @@ $prefillNote = $_POST['note'] ?? '';
                         </div>
                     <?php endif; ?>
 
-                    <form method="post" class="row g-3">
+                    <form method="post" class="row g-3" id="checkoutForm">
                         <input type="hidden" name="place_order" value="1">
                         <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_checkout_token']); ?>">
+                        <input type="hidden" name="promo_code" id="promoCodeInput" value="">
                         <div class="col-md-6">
                             <label class="form-label">Họ tên người nhận</label>
                             <input type="text" name="name" class="form-control" value="<?php echo htmlspecialchars($prefillName); ?>" required>
@@ -362,14 +477,173 @@ $prefillNote = $_POST['note'] ?? '';
                         <span>Phí vận chuyển</span>
                         <strong><?php echo number_format($shippingCost, 0, ',', '.'); ?>đ</strong>
                     </div>
-                    <div class="d-flex justify-content-between mb-3">
-                        <span>Mã giảm giá</span>
-                        <strong>-<?php echo number_format($discountAmount, 0, ',', '.'); ?>đ</strong>
+
+                    <!-- Mã giảm giá -->
+                    <div class="mb-3 pb-3 border-bottom">
+                        <label class="form-label small fw-bold">Áp dụng Mã Giảm Giá</label>
+                        
+                        <!-- Danh sách mã khuyến mãi -->
+                        <?php if (!empty($allPromos)): ?>
+                        <style>
+                        .promo-scroll { max-height: 220px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; padding: 8px; }
+                        .promo-scroll::-webkit-scrollbar { width: 8px; }
+                        .promo-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+                        </style>
+                        <div class="mb-2">
+                            <small class="text-muted">Kéo để xem và chọn mã (đã nhận).</small>
+                            <div class="promo-scroll mt-2">
+                                <?php foreach ($allPromos as $index => $p):
+                                    $remaining = isset($p['SoLuongMa'], $p['DaSuDung']) ? max(0, (int)$p['SoLuongMa'] - (int)$p['DaSuDung']) : null;
+                                    $startTs = !empty($p['NgayBatDau']) ? strtotime($p['NgayBatDau']) : null;
+                                    $endTs   = !empty($p['NgayKetThuc']) ? strtotime($p['NgayKetThuc']) : null;
+                                    $nowTs   = strtotime($currentDate);
+                                    $isExpired  = ($endTs && $endTs < $nowTs);
+                                    $isUpcoming = ($startTs && $startTs > $nowTs);
+                                    $isDepleted = ($remaining !== null && $remaining <= 0);
+                                    $canApply = !($isExpired || $isDepleted || $isUpcoming);
+
+                                    if (!$canApply) continue;
+
+                                    $isPercent = in_array($p['LoaiGiam'], ['PhanTram', '%'], true);
+                                    $valueText = $isPercent
+                                        ? (rtrim(rtrim(number_format($p['GiaTriGiam'], 2, '.', ''), '0'), '.') . '%')
+                                        : number_format($p['GiaTriGiam']) . 'đ';
+                                    $capText = ($isPercent && $p['GiamToiDa'] > 0)
+                                        ? ' · Tối đa ' . number_format($p['GiamToiDa']) . 'đ'
+                                        : '';
+                                    $minText = ($p['GiaTriDonHangToiThieu'] > 0)
+                                        ? 'Đơn tối thiểu ' . number_format($p['GiaTriDonHangToiThieu']) . 'đ'
+                                        : 'Không yêu cầu đơn tối thiểu';
+                                ?>
+                                <div class="d-flex align-items-center justify-content-between gap-2 py-2<?php echo ($index > 0 ? ' border-top' : ''); ?>">
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex flex-wrap align-items-center gap-2">
+                                            <span class="badge bg-primary">Mã: <?php echo htmlspecialchars($p['MaCode']); ?></span>
+                                            <span class="small text-muted"><?php echo htmlspecialchars($p['TenChuongTrinh']); ?></span>
+                                        </div>
+                                        <div class="small fw-semibold mt-1"><?php echo $valueText . $capText; ?></div>
+                                        <div class="small text-muted"><?php echo $minText; ?></div>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary promo-btn" onclick="togglePromo('<?php echo htmlspecialchars($p['MaCode']); ?>')">Chọn</button>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                        
+                        <!-- Input nhập mã -->
+                        <div class="input-group input-group-sm mb-2">
+                            <input type="text" id="promoInput" class="form-control" placeholder="Nhập mã giảm giá..." value="">
+                            <button type="button" class="btn btn-outline-secondary" onclick="applyPromo()">Áp dụng</button>
+                        </div>
+                        <div id="promoMessage" class="small"></div>
                     </div>
+
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Giảm giá</span>
+                        <strong id="discountDisplay">-<?php echo number_format($discountAmount, 0, ',', '.'); ?>đ</strong>
+                    </div>
+
                     <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded">
                         <span class="fw-bold">Tổng thanh toán</span>
-                        <span class="h5 mb-0 text-danger fw-bold"><?php echo number_format($grandTotal, 0, ',', '.'); ?>đ</span>
+                        <span class="h5 mb-0 text-danger fw-bold" id="totalDisplay"><?php echo number_format($grandTotal, 0, ',', '.'); ?>đ</span>
                     </div>
+
+                    <script>
+                    let selectedPromoCode = '';
+
+                    function setActivePromoButton(code) {
+                        document.querySelectorAll('.promo-btn').forEach(btn => {
+                            if (btn.textContent.trim() === code) {
+                                btn.classList.remove('btn-outline-primary');
+                                btn.classList.add('btn-primary', 'text-white');
+                            } else {
+                                btn.classList.add('btn-outline-primary');
+                                btn.classList.remove('btn-primary', 'text-white');
+                            }
+                        });
+                    }
+
+                    function resetPromoUI(messageText = '') {
+                        const msgEl = document.getElementById('promoMessage');
+                        msgEl.className = 'small text-muted';
+                        msgEl.textContent = messageText;
+                        document.getElementById('promoCodeInput').value = '';
+                        document.getElementById('promoInput').value = '';
+                        document.getElementById('discountDisplay').textContent = '-0đ';
+                        document.getElementById('totalDisplay').textContent = new Intl.NumberFormat('vi-VN').format(<?php echo $subtotal; ?>) + 'đ';
+                        selectedPromoCode = '';
+                        setActivePromoButton('');
+                    }
+
+                    function togglePromo(code) {
+                        if (selectedPromoCode === code) {
+                            resetPromoUI('Đã bỏ chọn mã.');
+                            return;
+                        }
+                        applyPromoByCode(code);
+                    }
+
+                    function applyPromo() {
+                        const code = document.getElementById('promoInput').value.trim();
+                        const subtotal = <?php echo $subtotal; ?>;
+                        const msgEl = document.getElementById('promoMessage');
+
+                        if (!code) {
+                            msgEl.className = 'small text-danger';
+                            msgEl.textContent = '⚠ Vui lòng nhập mã!';
+                            return;
+                        }
+                        setActivePromoButton('');
+                        selectedPromoCode = '';
+                        applyPromoByCode(code);
+                    }
+
+                    function applyPromoByCode(code) {
+                        const subtotal = <?php echo $subtotal; ?>;
+                        const msgEl = document.getElementById('promoMessage');
+                        
+                        // Gọi API kiểm tra mã
+                        const formData = new FormData();
+                        formData.append('code', code);
+                        formData.append('subtotal', subtotal);
+
+                        fetch('check_promo_code.php', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                msgEl.className = 'small text-success';
+                                msgEl.innerHTML = '✓ ' + data.message + '<br>' + data.discount_text + ' (từ mã: ' + code + ')';
+                                
+                                // Cập nhật hiển thị
+                                document.getElementById('discountDisplay').textContent = '-' + new Intl.NumberFormat('vi-VN').format(data.discount) + 'đ';
+                                document.getElementById('totalDisplay').textContent = new Intl.NumberFormat('vi-VN').format(data.final_total) + 'đ';
+                                
+                                // Lưu mã vào hidden input để submit form
+                                document.getElementById('promoCodeInput').value = code;
+                                document.getElementById('promoInput').value = code;
+                                selectedPromoCode = code;
+                                setActivePromoButton(code);
+                            } else {
+                                msgEl.className = 'small text-danger';
+                                msgEl.textContent = '✗ ' + data.message;
+                                resetPromoUI('');
+                            }
+                        })
+                        .catch(err => {
+                            msgEl.className = 'small text-danger';
+                            msgEl.textContent = '✗ Lỗi kết nối. Vui lòng thử lại.';
+                        });
+                    }
+
+                    // Enter key submit
+                    document.getElementById('promoInput').addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') applyPromo();
+                    });
+                    </script>
                 </div>
             </div>
         </div>
