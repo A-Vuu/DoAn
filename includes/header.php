@@ -19,27 +19,31 @@ if (session_status() === PHP_SESSION_NONE) {
 //     // =================================================================
 
 // =================================================================
-// AUTO LOGOUT USER BỊ CHẶN (BẮT BUỘC)
+// AUTO LOGOUT USER BỊ CHẶN (CHỈ FRONTEND)
 // =================================================================
 if (isset($_SESSION['user_id'])) {
 
     $uid = (int)$_SESSION['user_id'];
+
     $sql = "SELECT TrangThai FROM nguoidung WHERE Id = $uid LIMIT 1";
     $res = mysqli_query($conn, $sql);
 
-    if ($res && mysqli_num_rows($res) > 0) {
-        $u = mysqli_fetch_assoc($res);
+    if ($res && $u = mysqli_fetch_assoc($res)) {
 
         if ((int)$u['TrangThai'] === 0) {
 
-            session_unset();
-            session_destroy();
+            // ❌ KHÔNG destroy session
+            unset($_SESSION['user_id']);
+            unset($_SESSION['user_name']);
+            unset($_SESSION['user_email']);
+            unset($_SESSION['cart']);
 
             header("Location: login.php?blocked=1");
             exit();
         }
     }
 }
+
 
 
 // =================================================================

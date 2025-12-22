@@ -26,6 +26,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 
             if ($user = $res->fetch_assoc()) {
                 session_regenerate_id(true);
+
+                unset($_SESSION['admin_login']);
+                unset($_SESSION['admin_id']);
+                unset($_SESSION['admin_name']);
+
                 $_SESSION['user_id'] = $user['Id'];
                 $_SESSION['user_name'] = $user['HoTen'];
                 $_SESSION['user_email'] = $user['Email'];

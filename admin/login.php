@@ -12,6 +12,12 @@ if (isset($_POST['login'])) {
     if (mysqli_num_rows($result) > 0) {
     $row = mysqli_fetch_assoc($result);
 
+    // XOÁ SESSION USER (RẤT QUAN TRỌNG)
+    unset($_SESSION['user_id']);
+    unset($_SESSION['user_name']);
+    unset($_SESSION['user_email']);
+    unset($_SESSION['cart']);
+
     $_SESSION['admin_login'] = true;
     $_SESSION['admin_id'] = $row['Id'];
     $_SESSION['admin_name'] = $row['HoTen'];

@@ -13,27 +13,27 @@ if (!isset($_SESSION['admin_login'])) {
 
 
 
-// Nếu user đang đăng nhập
-if (isset($_SESSION['user_id'])) {
+// // Nếu user đang đăng nhập
+// if (isset($_SESSION['user_id'])) {
 
-    $uid = (int)$_SESSION['user_id'];
+//     $uid = (int)$_SESSION['user_id'];
 
-    $sql = "SELECT TrangThai FROM nguoidung WHERE Id = $uid LIMIT 1";
-    $res = mysqli_query($conn, $sql);
+//     $sql = "SELECT TrangThai FROM nguoidung WHERE Id = $uid LIMIT 1";
+//     $res = mysqli_query($conn, $sql);
 
-    if ($res && mysqli_num_rows($res) > 0) {
-        $u = mysqli_fetch_assoc($res);
+//     if ($res && mysqli_num_rows($res) > 0) {
+//         $u = mysqli_fetch_assoc($res);
 
-        // 🚨 USER BỊ CHẶN → LOGOUT NGAY
-        if ($u['TrangThai'] == 0) {
-            session_unset();
-            session_destroy();
+//         // 🚨 USER BỊ CHẶN → LOGOUT NGAY
+//         if ($u['TrangThai'] == 0) {
+//             session_unset();
+//             session_destroy();
 
-            header("Location: /login.php?blocked=1");
-            exit();
-        }
-    }
-}
+//             header("Location: /login.php?blocked=1");
+//             exit();
+//         }
+//     }
+// }
 
 
 
